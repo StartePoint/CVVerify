@@ -1,0 +1,58 @@
+# Build outputs
+/build/
+/build-*/
+/out/
+/bin/
+/lib/
+/dist/
+
+# CMake
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/compile_commands.json
+/Testing/
+/CTestTestfile.cmake
+
+# Qt Creator / IDE
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.user
+*.vcxproj.user
+*.sln.docstates
+/.vs/
+/.idea/
+/.vscode/
+
+# Generated binaries and debug symbols
+*.obj
+*.o
+*.pdb
+*.ilk
+*.idb
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+*.cache
+*.bak
+
+# Runtime/project data
+/workspace/
+/artifacts/
+/exports/
+/logs/
+/tmp/
+/worktrees/
+/.worktrees/
+
+# Brainstorming helper output
+/.superpowers/
