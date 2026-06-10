@@ -6,6 +6,18 @@
 - Tech Stack: C++17 + Qt Widgets + OpenCV + OpenCV DNN + CMake
 - Product Positioning: A desktop validation platform for algorithm and vision R&D, used to verify image processing results, model inference results, and reproducible experiment pipelines
 
+## 0. Local Build Baseline
+
+The current local implementation baseline is:
+
+- Qt 5.14.2
+- MinGW 7.3.0 64-bit
+- CMake
+
+This does not change the Windows-first and cross-platform-oriented product direction. It only defines the currently validated local desktop build toolchain.
+
+The current validated local SDK pairing is Qt 5.14.2 MinGW with a bundled OpenCV SDK at `opencvsdk/windows/opencv4.12`.
+
 ## 1. Product Goals
 
 This project is not aimed at general operators. It is a validation and experiment platform for R&D users who need:
@@ -588,6 +600,8 @@ opencvimageutil/
 |   |-- operator_schemas/
 |   `-- model_templates/
 |-- docs/
+|-- opencvsdk/
+|   `-- windows/
 |-- samples/
 |   |-- images/
 |   |-- videos/

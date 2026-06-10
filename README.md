@@ -1,77 +1,119 @@
 # CVVerify
 
-CVVerify is an open-source desktop validation platform for computer vision R&D.
+CVVerify is a Qt Widgets desktop workstation for validating computer vision pipelines on Windows-first toolchains. It combines traditional OpenCV operators, image and video preview, schema-driven parameter editing, pipeline composition, and ONNX-oriented model workflows in one application shell.
 
-It is designed for algorithm engineers who need to validate:
+## What CVVerify Covers Today
 
-- traditional OpenCV image processing pipelines
-- ONNX model inference behavior through OpenCV DNN
-- image and video processing results under fully exposed parameters
-- reproducible experiment configurations and exported outputs
+- Image and video loading with a shared frame packet abstraction.
+- Traditional operator categories for morphology, filtering, enhancement and transforms, thresholding, edge detection, visual effects, detection, segmentation, and feature workflows.
+- Embedded parameter editing for pipeline steps without opening a parameter dialog for every operator.
+- Full-pipeline and single-node preview modes.
+- Export-oriented detection workflow scaffolding, including YOLO model packaging and result composition.
+- Unit tests covering core pipeline logic and major UI panels.
 
-## Vision
+Some feature areas are still evolving. The repository already contains placeholder implementations for selected SURF-related workflows where upstream availability, licensing, or deployment constraints need to be handled carefully.
 
-CVVerify aims to provide one workstation for:
+## Toolchain Baseline
 
-- image experimentation
-- video preview and offline validation
-- model import and configuration
-- operator and inference pipeline composition
-- result comparison, diagnostics, and export
+The current development baseline is pinned to:
 
-The first release targets Windows, while the codebase is structured for future cross-platform support.
+- Qt 5.14.2
+- MinGW 7.3.0 64-bit
+- bundled OpenCV 4.12.0 SDK
+- CMake and qmake project files
 
-## Planned Core Features
+The repository is structured for future cross-platform work, but the actively maintained local workflow is Windows + Qt 5.14.2 + MinGW.
 
-- Traditional image processing operators with schema-driven parameter panels
-- User-provided ONNX model import and categorization
-- Dual-entry model configuration:
-  - import from training-platform outputs
-  - generate/edit through a visual configuration editor
-- Unified frame-stream abstraction for both images and videos
-- Real-time preview and offline processing pipelines
-- Overlay rendering, structured result export, and reproducible configuration snapshots
+## Quick Start
 
-## Current Status
+Start with the Windows build guide:
 
-This repository is in the architecture and planning stage.
+- [Windows MinGW Build](docs/build-windows-mingw.md)
 
-Available now:
+Related documentation:
 
-- product specification document
+- [Repository Structure](docs/repository-structure.md)
+- [Open Source Release Checklist](docs/open-source-release-checklist.md)
+- [Third-Party Notices](THIRD_PARTY_NOTICES.md)
+- [Operator Parameter Review](docs/operator-parameter-review.html)
 
-Planned next:
+## Build and Test Entry Points
 
-- implementation plan
-- project skeleton
-- core pipeline framework
+CMake:
 
-## Specification
+```powershell
+cmake -S . -B build-mingw -G "MinGW Makefiles"
+cmake --build build-mingw
+ctest --test-dir build-mingw --output-on-failure
+```
+
+qmake:
+
+```powershell
+qmake CVVerify.pro
+mingw32-make
+qmake CVVerifyCoreTests.pro
+mingw32-make
+.\CVVerifyCoreTests.exe
+```
+
+Use the detailed commands in [docs/build-windows-mingw.md](docs/build-windows-mingw.md) to provide the correct Qt, MinGW, and OpenCV paths.
+
+## Repository Layout
+
+- `src/app`: application settings and startup glue.
+- `src/core`: media, operators, detection, and pipeline logic.
+- `src/infra`: OpenCV and framework integration helpers.
+- `src/ui`: main window, dialogs, panels, and widgets.
+- `tests/unit`: core and UI unit tests collected into `CVVerifyCoreTests`.
+- `resources`: icons, Windows resource files, and application resources.
+- `qmake`: shared qmake include files and source lists.
+- `docs`: build instructions, review artifacts, design documents, and repository guidance.
+
+The longer explanation lives in [docs/repository-structure.md](docs/repository-structure.md).
+
+## Bundled Dependencies
+
+The repository tracks a bundled Windows MinGW OpenCV SDK at `opencvsdk/windows/opencv4.12`. That layout is the default dependency root used by both CMake and qmake.
+
+When upgrading or replacing the bundled SDK:
+
+- keep the folder under `opencvsdk/windows/`
+- update `CVVERIFY_OPENCV_SDK_ROOT` in `CMakeLists.txt` if the versioned directory changes
+- review [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- verify redistribution terms for the bundled binaries and notices
+
+## Current Project Status
+
+This repository is still pre-release, but it already contains a usable vertical slice:
+
+- main window shell with dual preview areas
+- pipeline strip and embedded operator workbench
+- localized menus and parameter labels
+- image/video media loading
+- schema-driven operator registry
+- YOLO package import scaffolding
+- unit test harness for core and UI modules
+
+GitHub Actions currently validate repository metadata and contribution files. Full hosted build CI is intentionally deferred until the Windows Qt 5.14.2 + MinGW provisioning path is stabilized for public runners.
+
+## Project Documents
 
 - [Design Spec](docs/superpowers/specs/2026-06-04-opencv-validation-platform-design.md)
+- [Foundation Plan](docs/superpowers/plans/2026-06-04-cvverify-v1-foundation-plan.md)
+- [Media And Operator Plan](docs/superpowers/plans/2026-06-04-cvverify-media-operator-plan.md)
+- [Operator System Expansion Plan](docs/superpowers/plans/2026-06-09-operator-system-expansion-plan.md)
 
-## Repository Roadmap
+## Open Source Collaboration
 
-1. Establish project skeleton and build system
-2. Implement frame-stream pipeline core
-3. Add traditional operator registry and preview loop
-4. Add ONNX model import and inference workflow
-5. Add batch processing, offline video, and export features
-6. Prepare Windows release and open-source collaboration workflow
+Repository collaboration files are already included:
 
-## Open Source
-
-This project is intended to be open source from the beginning.
-
-Planned repository standards include:
-
-- contribution guide
-- code of conduct
-- security policy
-- issue templates
-- pull request template
-- CI workflow
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Support Guide](SUPPORT.md)
+- [Pull Request Template](.github/pull_request_template.md)
 
 ## License
 
-Planned: MIT License
+CVVerify source code is licensed under the [MIT License](LICENSE). Bundled third-party components keep their own licenses and notices.

@@ -1,26 +1,38 @@
 # Contributing to CVVerify
 
-Thanks for contributing.
+Thanks for contributing to CVVerify. This repository is still pre-release, so small, well-scoped changes are much easier to review and merge than broad refactors.
 
-## Before You Start
+## Before Opening a Pull Request
 
-- Read the project specification in `docs/superpowers/specs/`
-- Open or review an issue before starting larger work
-- Keep changes focused and easy to review
+- Read the build guide in `docs/build-windows-mingw.md`.
+- Review the current design and implementation plans in `docs/superpowers/specs/` and `docs/superpowers/plans/` when working on larger changes.
+- Open or reference an issue before starting work that affects architecture, packaging, operator behavior, export format, or public APIs.
+- Keep one pull request focused on one problem or one feature area.
 
-## Development Principles
+## Local Development Baseline
 
-- Prefer small, composable modules
-- Keep UI logic separated from processing logic
-- Preserve cross-platform compatibility even when implementing Windows-first features
-- Do not introduce direct platform-specific dependencies into core processing modules unless isolated behind adapters
+The maintained local toolchain is:
 
-## Branching
+- Qt 5.14.2
+- MinGW 7.3.0 64-bit
+- bundled OpenCV SDK in `opencvsdk/windows/opencv4.12`
+- CMake and qmake project files
 
-- Create one branch per feature or fix
-- Use clear commit messages
+Use the commands in `docs/build-windows-mingw.md` instead of inventing a new local layout in pull requests.
 
-Suggested prefixes:
+## Development Guidelines
+
+- Keep core image-processing logic in `src/core` and framework glue in `src/infra`.
+- Keep UI behavior in `src/ui` and avoid mixing QWidget code into core processing modules.
+- Reuse the schema-driven operator and parameter infrastructure before introducing custom one-off editors.
+- Preserve Windows-first compatibility while avoiding unnecessary hard-coded machine paths.
+- Avoid unrelated formatting churn in files you touch.
+
+## Branches and Commits
+
+Use a dedicated branch per feature or fix. Clear commit messages make release notes and review easier.
+
+Suggested commit prefixes:
 
 - `feat:`
 - `fix:`
@@ -29,36 +41,35 @@ Suggested prefixes:
 - `test:`
 - `chore:`
 
-## Pull Requests
+## Pull Request Expectations
 
-Please include:
+Every pull request should explain:
 
 - what changed
-- why it changed
-- how it was tested
-- any known limitations
+- why the change was needed
+- how it was verified
+- any known gaps or follow-up work
 
-For UI or result-rendering changes, include screenshots when possible.
-
-## Code Style
-
-- C++17
-- CMake-based build
-- Qt Widgets for desktop UI
-- Keep files focused on a single responsibility
-- Prefer descriptive names over abbreviated names
+For UI changes, include screenshots or short notes describing the visible result. For operator behavior changes, mention any affected parameter names, defaults, or preview behavior.
 
 ## Tests
 
-When adding behavior:
+When behavior changes:
 
-- add or update tests where practical
-- describe manual verification steps if automated tests are not yet available
+- add or update unit tests when practical
+- run the relevant local test path when the environment is available
+- describe manual verification steps if hosted or local automated coverage is not yet possible
+
+If you cannot run tests, say so explicitly in the pull request.
 
 ## Documentation
 
 Update documentation when:
 
-- behavior changes
-- configuration changes
-- new user-facing capabilities are introduced
+- build steps change
+- operator behavior changes
+- menu text or workflow changes
+- export format or file layout changes
+- public repository policies change
+
+At minimum, review `README.md`, `docs/build-windows-mingw.md`, and any feature-specific documents touched by the change.

@@ -6,7 +6,7 @@
 
 **Architecture:** Use a modular monolith structure with clear separation between UI, application orchestration, core processing contracts, and infrastructure helpers. Start by implementing the smallest vertical slice that proves the Windows-first but cross-platform-ready desktop architecture, while keeping all processing centered around the frame-stream abstraction.
 
-**Tech Stack:** C++17, Qt Widgets, CMake, OpenCV, OpenCV DNN, GitHub Actions
+**Tech Stack:** C++17, Qt Widgets, CMake, OpenCV, OpenCV DNN, GitHub Actions, Qt 5.14.2 + MinGW 7.3.0 (current local baseline)
 
 ---
 
@@ -137,17 +137,17 @@ src/infra/.gitkeep
 
 - [ ] **Step 4: Configure the project**
 
-Run: `cmake -S . -B build`
+Run: `cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:\Qt\Qt5.14.2\5.14.2\mingw73_64 -DCMAKE_C_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\gcc.exe -DCMAKE_CXX_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\g++.exe -DCMAKE_MAKE_PROGRAM=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\mingw32-make.exe`
 
 Expected:
 
 - CMake configure succeeds
 - Qt6 packages resolve successfully
-- `build/` is generated
+- `build-mingw/` is generated
 
 - [ ] **Step 5: Build the bootstrap target**
 
-Run: `cmake --build build --config Release`
+Run: `cmake --build build-mingw`
 
 Expected:
 
@@ -335,9 +335,9 @@ MediaPanel::MediaPanel(QWidget* parent)
 
 - [ ] **Step 7: Configure and build again**
 
-Run: `cmake -S . -B build`
+Run: `cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:\Qt\Qt5.14.2\5.14.2\mingw73_64 -DCMAKE_C_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\gcc.exe -DCMAKE_CXX_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\g++.exe -DCMAKE_MAKE_PROGRAM=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\mingw32-make.exe`
 
-Run: `cmake --build build --config Release`
+Run: `cmake --build build-mingw`
 
 Expected:
 
@@ -346,7 +346,7 @@ Expected:
 
 - [ ] **Step 8: Launch and verify the shell manually**
 
-Run: `build\\CVVerify.exe`
+Run: `build-mingw\\CVVerify.exe`
 
 Expected:
 
@@ -523,9 +523,9 @@ StepResult PipelineEngine::run(FramePacket& frame, const RunContext& context) co
 
 - [ ] **Step 6: Build to verify contracts compile cleanly**
 
-Run: `cmake -S . -B build`
+Run: `cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:\Qt\Qt5.14.2\5.14.2\mingw73_64 -DCMAKE_C_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\gcc.exe -DCMAKE_CXX_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\g++.exe -DCMAKE_MAKE_PROGRAM=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\mingw32-make.exe`
 
-Run: `cmake --build build --config Release`
+Run: `cmake --build build-mingw`
 
 Expected:
 
@@ -676,11 +676,11 @@ QTEST_APPLESS_MAIN(PipelineEngineTest)
 
 - [ ] **Step 4: Run tests to verify the target builds and executes**
 
-Run: `cmake -S . -B build`
+Run: `cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:\Qt\Qt5.14.2\5.14.2\mingw73_64 -DCMAKE_C_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\gcc.exe -DCMAKE_CXX_COMPILER=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\g++.exe -DCMAKE_MAKE_PROGRAM=C:\Qt\Qt5.14.2\Tools\mingw730_64\bin\mingw32-make.exe`
 
-Run: `cmake --build build --config Release --target CVVerifyCoreTests`
+Run: `cmake --build build-mingw --target CVVerifyCoreTests`
 
-Run: `ctest --test-dir build --output-on-failure`
+Run: `ctest --test-dir build-mingw --output-on-failure`
 
 Expected:
 
@@ -733,9 +733,9 @@ layout->addWidget(new QLabel("Preview Canvas", this));
 
 - [ ] **Step 3: Rebuild and manually verify the UI language**
 
-Run: `cmake --build build --config Release`
+Run: `cmake --build build-mingw`
 
-Run: `build\\CVVerify.exe`
+Run: `build-mingw\\CVVerify.exe`
 
 Expected:
 

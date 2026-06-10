@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ExportResultsPanel</class>
+ <widget class="QWidget" name="ExportResultsPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>320</width>
+    <height>260</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="panelTitleLabel">
+     <property name="text">
+      <string>Export Results</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="historyTitleLabel">
+     <property name="text">
+      <string>Recent Exports</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QListWidget" name="exportHistoryList"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="exportTitleLabel">
+     <property name="text">
+      <string>Latest Export</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="exportSummaryLabel">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>No export has been recorded yet.</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="exportOutputDirLabel">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Output Directory: -</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="artifactsTitleLabel">
+     <property name="text">
+      <string>Artifacts</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QListWidget" name="exportArtifactsList"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="actionsLayout">
+     <item>
+      <widget class="QPushButton" name="openExportDirectoryButton">
+       <property name="text">
+        <string>Open Output Directory</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="openSelectedArtifactButton">
+       <property name="text">
+        <string>Open Selected Artifact</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

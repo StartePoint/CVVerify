@@ -19,6 +19,10 @@
 *.pro.user.*
 *.qbs.user
 *.user
+.qmake.stash
+Makefile*
+debug/
+release/
 *.vcxproj.user
 *.sln.docstates
 /.vs/
@@ -38,12 +42,20 @@
 *.a
 *.lib
 
+# Keep bundled OpenCV SDK versioned in the repository
+!/opencvsdk/
+!/opencvsdk/windows/
+!/opencvsdk/windows/opencv4.12/
+!/opencvsdk/windows/opencv4.12/**
+
 # Logs and temp
 *.log
 *.tmp
 *.temp
 *.cache
 *.bak
+Thumbs.db
+.DS_Store
 
 # Runtime/project data
 /workspace/
@@ -53,6 +65,9 @@
 /tmp/
 /worktrees/
 /.worktrees/
+/latest-tests.txt
+/test-results.txt
+/opencv4.12/
 
 # Brainstorming helper output
 /.superpowers/

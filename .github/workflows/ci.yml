@@ -1,21 +1,59 @@
-name: CI
+name: Repository Checks
 
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  build:
+  repository-checks:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -S . -B build
+      - name: Verify required repository files
+        shell: pwsh
+        run: |
+          $required = @(
+            "README.md",
+            "LICENSE",
+            "CONTRIBUTING.md",
+            "SECURITY.md",
+            "CODE_OF_CONDUCT.md",
+            "SUPPORT.md",
+            "THIRD_PARTY_NOTICES.md",
+            ".github/pull_request_template.md",
+            ".github/ISSUE_TEMPLATE/bug_report.md",
+            ".github/ISSUE_TEMPLATE/feature_request.md",
+            ".github/ISSUE_TEMPLATE/config.yml",
+            "docs/build-windows-mingw.md",
+            "docs/repository-structure.md",
+            "docs/open-source-release-checklist.md"
+          )
 
-      - name: Build
-        run: cmake --build build --config Release
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing required repository file: $path"
+            }
+          }
+
+      - name: Verify ignored local-only files are not tracked
+        shell: pwsh
+        run: |
+          $tracked = git ls-files
+          $disallowedPatterns = @(
+            '\.pro\.user(\..+)?$',
+            '^latest-tests\.txt$',
+            '^test-results\.txt$'
+          )
+
+          foreach ($pattern in $disallowedPatterns) {
+            $matches = $tracked | Where-Object { $_ -match $pattern }
+            if ($matches) {
+              throw "Tracked local-only file(s) detected:`n$($matches -join "`n")"
+            }
+          }

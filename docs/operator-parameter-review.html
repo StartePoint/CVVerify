@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CVVerify 算子参数审阅页</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --panel: rgba(255, 252, 246, 0.9);
+      --panel-strong: #fffaf1;
+      --ink: #18222c;
+      --muted: #596773;
+      --line: rgba(24, 34, 44, 0.14);
+      --accent: #b6532f;
+      --accent-soft: rgba(182, 83, 47, 0.12);
+      --navy: #20465e;
+      --green: #356b54;
+      --gold: #90612f;
+      --rose: #8e4d5e;
+      --shadow: 0 18px 40px rgba(21, 30, 37, 0.08);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Bahnschrift", "Segoe UI Variable Text", "Microsoft YaHei UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(182, 83, 47, 0.13), transparent 24rem),
+        radial-gradient(circle at top right, rgba(32, 70, 94, 0.16), transparent 26rem),
+        linear-gradient(180deg, #f7f3ea 0%, #efe9df 100%);
+      min-height: 100vh;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      width: min(1480px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(24, 34, 44, 0.96), rgba(32, 70, 94, 0.92)),
+        linear-gradient(120deg, rgba(182, 83, 47, 0.12), transparent);
+      color: #f8f6f0;
+      border-radius: 30px;
+      padding: 34px 34px 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -120px auto;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 214, 153, 0.3), transparent 72%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(34px, 4vw, 60px);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 960px;
+      color: rgba(248, 246, 240, 0.82);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.35fr 0.9fr;
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      padding: 18px 18px 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .glass-card h2,
+    .glass-card h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      color: #fff5e6;
+    }
+
+    .glass-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(248, 246, 240, 0.84);
+      line-height: 1.7;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .metric {
+      padding: 14px 14px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 26px;
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: rgba(248, 246, 240, 0.78);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 14px;
+      margin: 18px 0 20px;
+      padding: 14px;
+      background: rgba(255, 250, 241, 0.88);
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      border-radius: 22px;
+      box-shadow: 0 12px 30px rgba(21, 30, 37, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .search-wrap input {
+      width: 100%;
+      border: 1px solid rgba(24, 34, 44, 0.14);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 15px;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .search-wrap input:focus {
+      border-color: rgba(182, 83, 47, 0.45);
+      box-shadow: 0 0 0 4px rgba(182, 83, 47, 0.08);
+    }
+
+    .chips,
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-content: flex-start;
+    }
+
+    .chip,
+    .legend-item,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .chip {
+      background: rgba(24, 34, 44, 0.05);
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      color: var(--ink);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .chip:hover {
+      transform: translateY(-1px);
+      background: rgba(182, 83, 47, 0.1);
+    }
+
+    .legend-item {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .legend-dot.direct { background: var(--green); }
+    .legend-dot.interactive { background: var(--navy); }
+    .legend-dot.multi { background: var(--gold); }
+    .legend-dot.placeholder { background: var(--rose); }
+    .legend-dot.confirm { background: var(--accent); }
+
+    .section {
+      margin-top: 30px;
+      padding: 24px;
+      border-radius: 30px;
+      background: rgba(255, 251, 245, 0.84);
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(24px, 2.4vw, 34px);
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 920px;
+      line-height: 1.7;
+    }
+
+    .operator-count {
+      padding: 10px 14px;
+      border-radius: 18px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .operator-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .operator-card {
+      border-radius: 24px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      overflow: hidden;
+      box-shadow: 0 10px 26px rgba(21, 30, 37, 0.06);
+    }
+
+    .operator-card[hidden],
+    .section[hidden] {
+      display: none !important;
+    }
+
+    .operator-top {
+      padding: 20px 20px 14px;
+      background:
+        linear-gradient(180deg, rgba(182, 83, 47, 0.08), rgba(182, 83, 47, 0.01)),
+        linear-gradient(125deg, rgba(32, 70, 94, 0.04), transparent);
+      border-bottom: 1px solid rgba(24, 34, 44, 0.06);
+    }
+
+    .operator-top h3 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .operator-id {
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tag {
+      border: 1px solid transparent;
+      font-weight: 600;
+    }
+
+    .tag.direct {
+      background: rgba(53, 107, 84, 0.12);
+      color: var(--green);
+      border-color: rgba(53, 107, 84, 0.16);
+    }
+
+    .tag.interactive {
+      background: rgba(32, 70, 94, 0.12);
+      color: var(--navy);
+      border-color: rgba(32, 70, 94, 0.16);
+    }
+
+    .tag.multi {
+      background: rgba(144, 97, 47, 0.12);
+      color: var(--gold);
+      border-color: rgba(144, 97, 47, 0.16);
+    }
+
+    .tag.placeholder {
+      background: rgba(142, 77, 94, 0.12);
+      color: var(--rose);
+      border-color: rgba(142, 77, 94, 0.16);
+    }
+
+    .tag.confirm {
+      background: rgba(182, 83, 47, 0.12);
+      color: var(--accent);
+      border-color: rgba(182, 83, 47, 0.16);
+    }
+
+    .operator-note {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 16px 20px 4px;
+    }
+
+    .meta-item {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(24, 34, 44, 0.03);
+      border: 1px solid rgba(24, 34, 44, 0.06);
+    }
+
+    .meta-item small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .meta-item strong {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .table-wrap {
+      padding: 16px 20px 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid rgba(24, 34, 44, 0.08);
+      background: #fffdf8;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(24, 34, 44, 0.08);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    th {
+      background: rgba(24, 34, 44, 0.05);
+      color: var(--ink);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Consolas", monospace;
+      background: rgba(24, 34, 44, 0.05);
+      padding: 2px 5px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      padding: 40px 18px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(24, 34, 44, 0.16);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    @media (max-width: 1120px) {
+      .hero-grid,
+      .toolbar,
+      .operator-grid,
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 18px, 100%);
+        padding-top: 10px;
+      }
+
+      .hero,
+      .section {
+        border-radius: 22px;
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      th,
+      td {
+        min-width: 140px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="eyebrow">CVVerify Operator System Review</div>
+      <h1>算子参数审阅页</h1>
+      <p>
+        这是给你确认的一版“算子目录 + 参数规范”提案，不是最终代码实现清单。
+        我把 9 大类算子拆成了可以直接挂进现有 `OperatorDescriptor + StepSchema` 架构的形式，
+        同时标出了哪些算子需要画布交互、第二张图输入、SURF 占位、以及哪些视觉定义仍待你拍板。
+      </p>
+
+      <div class="hero-grid">
+        <section class="glass-card">
+          <h2>这页的阅读方式</h2>
+          <ul>
+            <li>先看每个算子的“建议实现方式”：独立算子还是家族算子。</li>
+            <li>再看参数表，确认默认值、范围、是否需要条件显示。</li>
+            <li>重点帮我拍板 4 类问题：`光纤效果`、`特殊效果`、交互型参数、SURF 保留策略。</li>
+            <li>你认可后，我就可以按这个规范继续写正式设计文档和分期实现计划。</li>
+          </ul>
+        </section>
+
+        <section class="glass-card">
+          <h3>当前提案里的关键约束</h3>
+          <ul>
+            <li>`SURF` / `SURF 特征匹配` 规范保留，当前 SDK 落地先用 `SIFT / ORB / AKAZE` 体系占位。</li>
+            <li>直方图、关键点、匹配结果不再只算“处理后图片”，需要支持附加结果视图。</li>
+            <li>仿射、透视、GrabCut、浸水填充、特征匹配，必须有额外交互输入能力。</li>
+            <li>`亮度对比度` 和 `|y = kx + b|` 我先按两个可并存算子写，后面你可以决定是否合并。</li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="hero-metrics" id="metrics"></div>
+    </header>
+
+    <section class="toolbar">
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="搜索算子名、参数名、key、备注，例如：GrabCut / sigma / otsu / 透视">
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot direct"></span>可直接实现</span>
+        <span class="legend-item"><span class="legend-dot interactive"></span>需要画布交互</span>
+        <span class="legend-item"><span class="legend-dot multi"></span>需要第二输入或附加结果</span>
+        <span class="legend-item"><span class="legend-dot placeholder"></span>SURF 规范保留 / SDK 占位</span>
+        <span class="legend-item"><span class="legend-dot confirm"></span>待你确认定义</span>
+      </div>
+      <div class="chips" id="categoryChips"></div>
+    </section>
+
+    <main id="catalogRoot"></main>
+  </div>
+
+  <script>
+    const catalog = [
+      {
+        category: '形态学处理',
+        summary: '建议这一类先做成“家族算子”。同一张图、同一套核参数、同一套输出类型，只切换操作类型和核形状即可。',
+        operators: [
+          {
+            name: '形态学处理',
+            suggestedId: 'builtin.morphology_advanced',
+            implementation: '家族算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '一个算子覆盖腐蚀、膨胀、开闭、形态学梯度、顶帽、黑帽。后续如果还要支持击中击不中，再单独扩展。',
+            params: [
+              { group: '操作设置', label: '操作类型', key: 'operation', type: 'choice', default: 'dilate', range: 'erode | dilate | open | close | gradient | tophat | blackhat' },
+              { group: '核设置', label: '核形状', key: 'kernelShape', type: 'choice', default: 'rect', range: 'rect | ellipse | cross' },
+              { group: '核设置', label: '核宽', key: 'kernelWidth', type: 'integer', default: '3', range: '1 ~ 99，建议奇数' },
+              { group: '核设置', label: '核高', key: 'kernelHeight', type: 'integer', default: '3', range: '1 ~ 99，建议奇数' },
+              { group: '操作设置', label: '迭代次数', key: 'iterations', type: 'integer', default: '1', range: '1 ~ 20' },
+              { group: '边界设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'reflect101', range: 'constant | replicate | reflect | reflect101' },
+              { group: '边界设置', label: '常量边界值', key: 'borderValue', type: 'integer', default: '0', range: '0 ~ 255', visible: 'borderType = constant' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '滤波',
+        summary: '这一类建议保持独立算子，每个算法的参数结构差异已经足够大，拆开后用户更好理解，测试也更清晰。',
+        operators: [
+          {
+            name: '均值滤波',
+            suggestedId: 'builtin.mean_blur',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: 'OpenCV 对应 `cv::blur`。',
+            params: [
+              { group: '核设置', label: '核宽', key: 'kernelWidth', type: 'integer', default: '3', range: '1 ~ 99' },
+              { group: '核设置', label: '核高', key: 'kernelHeight', type: 'integer', default: '3', range: '1 ~ 99' },
+              { group: '边界设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'reflect101', range: 'constant | replicate | reflect | reflect101' }
+            ]
+          },
+          {
+            name: '方框滤波',
+            suggestedId: 'builtin.box_filter',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '相比均值滤波，多一个 `normalize` 语义。',
+            params: [
+              { group: '核设置', label: '核宽', key: 'kernelWidth', type: 'integer', default: '3', range: '1 ~ 99' },
+              { group: '核设置', label: '核高', key: 'kernelHeight', type: 'integer', default: '3', range: '1 ~ 99' },
+              { group: '输出设置', label: '归一化', key: 'normalize', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '输出设置', label: '输出深度', key: 'ddepth', type: 'choice', default: 'same', range: 'same | 8u | 16s | 32f' },
+              { group: '边界设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'reflect101', range: 'constant | replicate | reflect | reflect101' }
+            ]
+          },
+          {
+            name: '高斯滤波',
+            suggestedId: 'builtin.gaussian_blur',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '当前项目里已经有初版，建议升级成宽高独立核。',
+            params: [
+              { group: '核设置', label: '核宽', key: 'kernelWidth', type: 'integer', default: '5', range: '1 ~ 99，建议奇数' },
+              { group: '核设置', label: '核高', key: 'kernelHeight', type: 'integer', default: '5', range: '1 ~ 99，建议奇数' },
+              { group: '高斯设置', label: 'Sigma X', key: 'sigmaX', type: 'double', default: '1.0', range: '0.0 ~ 50.0' },
+              { group: '高斯设置', label: 'Sigma Y', key: 'sigmaY', type: 'double', default: '0.0', range: '0.0 ~ 50.0', note: '0 表示自动跟随 Sigma X' },
+              { group: '边界设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'reflect101', range: 'constant | replicate | reflect | reflect101' }
+            ]
+          },
+          {
+            name: '中值滤波',
+            suggestedId: 'builtin.median_blur',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '核尺寸必须是奇数。',
+            params: [
+              { group: '核设置', label: '核尺寸', key: 'kernelSize', type: 'integer', default: '5', range: '3 ~ 31，必须奇数' }
+            ]
+          },
+          {
+            name: '双边滤波',
+            suggestedId: 'builtin.bilateral_filter',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '更适合保边去噪。',
+            params: [
+              { group: '滤波设置', label: '邻域直径', key: 'diameter', type: 'integer', default: '9', range: '1 ~ 31' },
+              { group: '滤波设置', label: 'Sigma Color', key: 'sigmaColor', type: 'double', default: '75.0', range: '1.0 ~ 255.0' },
+              { group: '滤波设置', label: 'Sigma Space', key: 'sigmaSpace', type: 'double', default: '75.0', range: '1.0 ~ 255.0' },
+              { group: '边界设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'reflect101', range: 'constant | replicate | reflect | reflect101' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '图像增强与变换',
+        summary: '这一类里既有简单数值变换，也有必须点选交互的几何变换，还包含输出图表的直方图算子，所以能力类型会混合出现。',
+        operators: [
+          {
+            name: '亮度与对比度',
+            suggestedId: 'builtin.brightness_contrast',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '典型实现是 `dst = alpha * src + beta`。',
+            params: [
+              { group: '增强设置', label: '对比度 Alpha', key: 'alpha', type: 'double', default: '1.0', range: '0.0 ~ 5.0，步进 0.05' },
+              { group: '增强设置', label: '亮度 Beta', key: 'beta', type: 'double', default: '0.0', range: '-255.0 ~ 255.0，步进 1.0' },
+              { group: '增强设置', label: '是否裁剪到 0~255', key: 'clipToByte', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: '仿射变换',
+            suggestedId: 'builtin.affine_transform',
+            implementation: '独立算子',
+            ability: '交互型单输入',
+            interaction: 'points_on_source',
+            output: '图像',
+            tags: ['interactive'],
+            note: '推荐支持两种模式：三点交互模式 + 参数化矩阵模式。首版可以先做三点交互。',
+            params: [
+              { group: '模式设置', label: '变换模式', key: 'mode', type: 'choice', default: 'three_point_interactive', range: 'three_point_interactive | parametric' },
+              { group: '参数模式', label: '旋转角度', key: 'rotationDeg', type: 'double', default: '0.0', range: '-180.0 ~ 180.0', visible: 'mode = parametric' },
+              { group: '参数模式', label: '缩放 X', key: 'scaleX', type: 'double', default: '1.0', range: '0.01 ~ 10.0', visible: 'mode = parametric' },
+              { group: '参数模式', label: '缩放 Y', key: 'scaleY', type: 'double', default: '1.0', range: '0.01 ~ 10.0', visible: 'mode = parametric' },
+              { group: '参数模式', label: '平移 X', key: 'translateX', type: 'double', default: '0.0', range: '-4000.0 ~ 4000.0', visible: 'mode = parametric' },
+              { group: '参数模式', label: '平移 Y', key: 'translateY', type: 'double', default: '0.0', range: '-4000.0 ~ 4000.0', visible: 'mode = parametric' },
+              { group: '输出设置', label: '输出宽', key: 'outputWidth', type: 'integer', default: '0', range: '0 表示跟随原图；1 ~ 8192' },
+              { group: '输出设置', label: '输出高', key: 'outputHeight', type: 'integer', default: '0', range: '0 表示跟随原图；1 ~ 8192' },
+              { group: '输出设置', label: '插值方式', key: 'interpolation', type: 'choice', default: 'linear', range: 'nearest | linear | cubic | area | lanczos4' }
+            ]
+          },
+          {
+            name: '笛卡尔 / 极坐标互转',
+            suggestedId: 'builtin.polar_transform',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议基于 `warpPolar`，把正向和逆向互转做成一个算子。',
+            params: [
+              { group: '模式设置', label: '转换方向', key: 'direction', type: 'choice', default: 'cart_to_polar', range: 'cart_to_polar | polar_to_cart' },
+              { group: '模式设置', label: '极坐标模式', key: 'polarMode', type: 'choice', default: 'linear', range: 'linear | log' },
+              { group: '中心设置', label: '中心模式', key: 'centerMode', type: 'choice', default: 'image_center', range: 'image_center | manual' },
+              { group: '中心设置', label: '中心 X', key: 'centerX', type: 'double', default: '0.0', range: '0.0 ~ image width', visible: 'centerMode = manual' },
+              { group: '中心设置', label: '中心 Y', key: 'centerY', type: 'double', default: '0.0', range: '0.0 ~ image height', visible: 'centerMode = manual' },
+              { group: '中心设置', label: '最大半径模式', key: 'radiusMode', type: 'choice', default: 'auto', range: 'auto | manual' },
+              { group: '中心设置', label: '最大半径', key: 'maxRadius', type: 'double', default: '0.0', range: '0.0 ~ 10000.0', visible: 'radiusMode = manual' },
+              { group: '输出设置', label: '输出宽', key: 'outputWidth', type: 'integer', default: '0', range: '0 表示自动；1 ~ 8192' },
+              { group: '输出设置', label: '输出高', key: 'outputHeight', type: 'integer', default: '0', range: '0 表示自动；1 ~ 8192' }
+            ]
+          },
+          {
+            name: '线性变换 |y = kx + b|',
+            suggestedId: 'builtin.linear_abs_transform',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '这里按你写的绝对值表达式提案，和普通亮度对比度算子保留为两个不同入口。',
+            params: [
+              { group: '变换设置', label: '斜率 k', key: 'k', type: 'double', default: '1.0', range: '-10.0 ~ 10.0，步进 0.05' },
+              { group: '变换设置', label: '偏移 b', key: 'b', type: 'double', default: '0.0', range: '-255.0 ~ 255.0，步进 1.0' },
+              { group: '变换设置', label: '取绝对值', key: 'applyAbs', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '输出设置', label: '是否裁剪到 0~255', key: 'clipToByte', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: '透视变换',
+            suggestedId: 'builtin.perspective_transform',
+            implementation: '独立算子',
+            ability: '交互型单输入',
+            interaction: 'points_on_source',
+            output: '图像',
+            tags: ['interactive'],
+            note: '常用于图片矫正。首版建议只做四点交互，不强行暴露 3x3 矩阵编辑。',
+            params: [
+              { group: '模式设置', label: '点位模式', key: 'pointMode', type: 'choice', default: 'four_point_interactive', range: 'four_point_interactive' },
+              { group: '输出设置', label: '输出宽', key: 'outputWidth', type: 'integer', default: '1024', range: '1 ~ 8192' },
+              { group: '输出设置', label: '输出高', key: 'outputHeight', type: 'integer', default: '768', range: '1 ~ 8192' },
+              { group: '输出设置', label: '插值方式', key: 'interpolation', type: 'choice', default: 'linear', range: 'nearest | linear | cubic | area | lanczos4' },
+              { group: '输出设置', label: '边界模式', key: 'borderType', type: 'choice', default: 'constant', range: 'constant | replicate | reflect | reflect101' },
+              { group: '输出设置', label: '常量边界值', key: 'borderValue', type: 'integer', default: '0', range: '0 ~ 255', visible: 'borderType = constant' }
+            ]
+          },
+          {
+            name: '直方图均衡化',
+            suggestedId: 'builtin.hist_equalize',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议在同一个算子里同时覆盖全局均衡化和 CLAHE，虽然你这轮没明说 CLAHE，但实现时非常有价值。',
+            params: [
+              { group: '模式设置', label: '均衡化模式', key: 'mode', type: 'choice', default: 'global', range: 'global | clahe' },
+              { group: '模式设置', label: '颜色处理模式', key: 'colorMode', type: 'choice', default: 'gray_or_luminance', range: 'gray_only | gray_or_luminance' },
+              { group: 'CLAHE 设置', label: 'Clip Limit', key: 'clipLimit', type: 'double', default: '2.0', range: '0.1 ~ 40.0', visible: 'mode = clahe' },
+              { group: 'CLAHE 设置', label: 'Tile Grid 宽', key: 'tileGridWidth', type: 'integer', default: '8', range: '1 ~ 64', visible: 'mode = clahe' },
+              { group: 'CLAHE 设置', label: 'Tile Grid 高', key: 'tileGridHeight', type: 'integer', default: '8', range: '1 ~ 64', visible: 'mode = clahe' }
+            ]
+          },
+          {
+            name: '直方图（线状）',
+            suggestedId: 'builtin.histogram_line',
+            implementation: '独立算子',
+            ability: '多结果或多输入型',
+            interaction: 'none',
+            output: '图表 + 可选叠加图',
+            tags: ['multi'],
+            note: '结果不应只写回处理图，建议新增附加结果视图，支持单独展示折线图。',
+            params: [
+              { group: '统计设置', label: '通道选择', key: 'channels', type: 'choice', default: 'gray', range: 'gray | b | g | r | all_rgb' },
+              { group: '统计设置', label: '柱数量', key: 'bins', type: 'integer', default: '256', range: '8 ~ 512' },
+              { group: '统计设置', label: '最小值', key: 'rangeMin', type: 'double', default: '0.0', range: '0.0 ~ 255.0' },
+              { group: '统计设置', label: '最大值', key: 'rangeMax', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '图表设置', label: '归一化', key: 'normalize', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '图表设置', label: 'Y 轴模式', key: 'yScale', type: 'choice', default: 'linear', range: 'linear | log' }
+            ]
+          },
+          {
+            name: '直方图（柱状）',
+            suggestedId: 'builtin.histogram_bar',
+            implementation: '独立算子',
+            ability: '多结果或多输入型',
+            interaction: 'none',
+            output: '图表 + 可选叠加图',
+            tags: ['multi'],
+            note: '和折线版共用底层统计数据，只是展示方式不同。',
+            params: [
+              { group: '统计设置', label: '通道选择', key: 'channels', type: 'choice', default: 'gray', range: 'gray | b | g | r | all_rgb' },
+              { group: '统计设置', label: '柱数量', key: 'bins', type: 'integer', default: '256', range: '8 ~ 512' },
+              { group: '统计设置', label: '最小值', key: 'rangeMin', type: 'double', default: '0.0', range: '0.0 ~ 255.0' },
+              { group: '统计设置', label: '最大值', key: 'rangeMax', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '图表设置', label: '归一化', key: 'normalize', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '图表设置', label: '柱宽模式', key: 'barStyle', type: 'choice', default: 'filled', range: 'filled | stroke' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '二值化',
+        summary: '固定阈值、Otsu、Triangle、自适应二值化的参数差异很明显，建议拆成独立算子，不要全部塞到一个大杂烩阈值面板里。',
+        operators: [
+          {
+            name: '基本二值化',
+            suggestedId: 'builtin.threshold_basic',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '对应当前项目里的阈值算子升级版。',
+            params: [
+              { group: '阈值设置', label: '阈值', key: 'threshold', type: 'double', default: '127.0', range: '0.0 ~ 255.0' },
+              { group: '阈值设置', label: '最大值', key: 'maxValue', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '阈值设置', label: '阈值类型', key: 'thresholdType', type: 'choice', default: 'binary', range: 'binary | binary_inv | trunc | tozero | tozero_inv' },
+              { group: '输入设置', label: '先转灰度', key: 'convertToGray', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: 'Otsu + 基本二值化',
+            suggestedId: 'builtin.threshold_otsu',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '这里只保留 `binary` / `binary_inv` 两种合法组合。',
+            params: [
+              { group: '阈值设置', label: '最大值', key: 'maxValue', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '阈值设置', label: '基础类型', key: 'thresholdType', type: 'choice', default: 'binary', range: 'binary | binary_inv' },
+              { group: '输入设置', label: '先转灰度', key: 'convertToGray', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: 'Triangle + 基本二值化',
+            suggestedId: 'builtin.threshold_triangle',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '和 Otsu 类似，只保留合法的基础类型组合。',
+            params: [
+              { group: '阈值设置', label: '最大值', key: 'maxValue', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '阈值设置', label: '基础类型', key: 'thresholdType', type: 'choice', default: 'binary', range: 'binary | binary_inv' },
+              { group: '输入设置', label: '先转灰度', key: 'convertToGray', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: '自适应二值化',
+            suggestedId: 'builtin.threshold_adaptive',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '自适应阈值和固定阈值参数结构完全不同，单独拆开最稳。',
+            params: [
+              { group: '阈值设置', label: '最大值', key: 'maxValue', type: 'double', default: '255.0', range: '0.0 ~ 255.0' },
+              { group: '阈值设置', label: '自适应方法', key: 'adaptiveMethod', type: 'choice', default: 'gaussian', range: 'mean | gaussian' },
+              { group: '阈值设置', label: '基础类型', key: 'thresholdType', type: 'choice', default: 'binary', range: 'binary | binary_inv' },
+              { group: '阈值设置', label: '块大小', key: 'blockSize', type: 'integer', default: '11', range: '3 ~ 99，必须奇数' },
+              { group: '阈值设置', label: '常数 C', key: 'cValue', type: 'double', default: '2.0', range: '-50.0 ~ 50.0' },
+              { group: '输入设置', label: '先转灰度', key: 'convertToGray', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '边缘检测',
+        summary: '建议每个经典算子独立存在。虽然底层都算边缘，但参数模型、输出理解和典型调参方式差别很大。',
+        operators: [
+          {
+            name: 'Sobel 算子',
+            suggestedId: 'builtin.edge_sobel',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议支持 X、Y、Magnitude 三种输出模式。',
+            params: [
+              { group: '梯度设置', label: '输出模式', key: 'outputMode', type: 'choice', default: 'magnitude', range: 'x | y | magnitude | abs_sum' },
+              { group: '梯度设置', label: 'dx', key: 'dx', type: 'integer', default: '1', range: '0 ~ 3' },
+              { group: '梯度设置', label: 'dy', key: 'dy', type: 'integer', default: '1', range: '0 ~ 3' },
+              { group: '梯度设置', label: '核尺寸', key: 'kernelSize', type: 'integer', default: '3', range: '1 | 3 | 5 | 7' },
+              { group: '梯度设置', label: 'Scale', key: 'scale', type: 'double', default: '1.0', range: '0.0 ~ 20.0' },
+              { group: '梯度设置', label: 'Delta', key: 'delta', type: 'double', default: '0.0', range: '-255.0 ~ 255.0' }
+            ]
+          },
+          {
+            name: 'Canny 算子',
+            suggestedId: 'builtin.canny',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '当前项目里已存在初版。',
+            params: [
+              { group: '阈值设置', label: '阈值 1', key: 'threshold1', type: 'double', default: '50.0', range: '0.0 ~ 500.0' },
+              { group: '阈值设置', label: '阈值 2', key: 'threshold2', type: 'double', default: '150.0', range: '0.0 ~ 500.0' },
+              { group: '梯度设置', label: '孔径大小', key: 'apertureSize', type: 'integer', default: '3', range: '3 | 5 | 7' },
+              { group: '梯度设置', label: 'L2 Gradient', key: 'useL2Gradient', type: 'boolean', default: 'false', range: 'true | false' }
+            ]
+          },
+          {
+            name: 'Laplacian 算子',
+            suggestedId: 'builtin.edge_laplacian',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议支持输出绝对值，方便直接预览。',
+            params: [
+              { group: '梯度设置', label: '核尺寸', key: 'kernelSize', type: 'integer', default: '3', range: '1 | 3 | 5 | 7' },
+              { group: '梯度设置', label: 'Scale', key: 'scale', type: 'double', default: '1.0', range: '0.0 ~ 20.0' },
+              { group: '梯度设置', label: 'Delta', key: 'delta', type: 'double', default: '0.0', range: '-255.0 ~ 255.0' },
+              { group: '输出设置', label: '取绝对值', key: 'convertAbs', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: 'Scharr 算子',
+            suggestedId: 'builtin.edge_scharr',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: 'Scharr 常用于更稳定的一阶导数。',
+            params: [
+              { group: '梯度设置', label: '输出模式', key: 'outputMode', type: 'choice', default: 'magnitude', range: 'x | y | magnitude | abs_sum' },
+              { group: '梯度设置', label: 'Scale', key: 'scale', type: 'double', default: '1.0', range: '0.0 ~ 20.0' },
+              { group: '梯度设置', label: 'Delta', key: 'delta', type: 'double', default: '0.0', range: '-255.0 ~ 255.0' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '滤镜效果',
+        summary: '这一类里我把“明确定义的 OpenCV 效果”和“你业务上还没完全定义清楚的效果”分开标了，后者会挂上待确认状态。',
+        operators: [
+          {
+            name: '图片颜色转换',
+            suggestedId: 'builtin.color_convert',
+            implementation: '家族算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议做成颜色空间转换家族，不必拆成很多零碎入口。',
+            params: [
+              { group: '颜色设置', label: '转换类型', key: 'conversion', type: 'choice', default: 'bgr_to_gray', range: 'bgr_to_gray | gray_to_bgr | bgr_to_rgb | rgb_to_bgr | bgr_to_hsv | hsv_to_bgr | bgr_to_lab | lab_to_bgr | bgr_to_ycrcb | ycrcb_to_bgr' }
+            ]
+          },
+          {
+            name: '彩色映射',
+            suggestedId: 'builtin.color_map',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '通常用于灰度转伪彩。建议自动在彩色输入时先转灰度。',
+            params: [
+              { group: '映射设置', label: '颜色映射表', key: 'colorMap', type: 'choice', default: 'turbo', range: 'autumn | bone | jet | winter | rainbow | ocean | summer | spring | cool | hsv | pink | hot | parula | magma | inferno | plasma | viridis | cividis | turbo | deepgreen' },
+              { group: '映射设置', label: '彩色输入先转灰度', key: 'convertToGray', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '映射设置', label: '反相灰度', key: 'invertGray', type: 'boolean', default: 'false', range: 'true | false' }
+            ]
+          },
+          {
+            name: '手工画效果',
+            suggestedId: 'builtin.pencil_sketch',
+            implementation: '家族算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议基于 `cv::pencilSketch`，同时支持灰色素描和彩色素描。',
+            params: [
+              { group: '效果设置', label: '输出模式', key: 'outputMode', type: 'choice', default: 'gray', range: 'gray | color' },
+              { group: '效果设置', label: 'Sigma S', key: 'sigmaS', type: 'double', default: '60.0', range: '0.0 ~ 200.0' },
+              { group: '效果设置', label: 'Sigma R', key: 'sigmaR', type: 'double', default: '0.07', range: '0.0 ~ 1.0' },
+              { group: '效果设置', label: 'Shade Factor', key: 'shadeFactor', type: 'double', default: '0.02', range: '0.0 ~ 0.2' }
+            ]
+          },
+          {
+            name: '艺术效果',
+            suggestedId: 'builtin.art_effect',
+            implementation: '家族算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '我这里先提案做成艺术风格家族：`stylization / detail_enhance / edge_preserve`。如果你只想保留一种风格，后面可以再收口。',
+            params: [
+              { group: '效果设置', label: '风格算法', key: 'styleMode', type: 'choice', default: 'stylization', range: 'stylization | detail_enhance | edge_preserve' },
+              { group: '效果设置', label: 'Sigma S', key: 'sigmaS', type: 'double', default: '60.0', range: '0.0 ~ 200.0' },
+              { group: '效果设置', label: 'Sigma R', key: 'sigmaR', type: 'double', default: '0.45', range: '0.0 ~ 1.0' }
+            ]
+          },
+          {
+            name: '光纤效果',
+            suggestedId: 'builtin.fiber_glow',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['confirm'],
+            note: '这个名字目前在视觉定义上还不够清楚。我先按“方向性拖影 / 发光纤维”类效果提案，后面需要你确认是不是你想要的效果。',
+            params: [
+              { group: '效果设置', label: '方向角度', key: 'angleDeg', type: 'double', default: '25.0', range: '0.0 ~ 360.0' },
+              { group: '效果设置', label: '拉丝长度', key: 'streakLength', type: 'integer', default: '15', range: '1 ~ 200' },
+              { group: '效果设置', label: '发光强度', key: 'intensity', type: 'double', default: '1.2', range: '0.0 ~ 10.0' },
+              { group: '效果设置', label: '阈值', key: 'threshold', type: 'double', default: '180.0', range: '0.0 ~ 255.0' },
+              { group: '混合设置', label: '混合透明度', key: 'blendAlpha', type: 'double', default: '0.7', range: '0.0 ~ 1.0' }
+            ]
+          },
+          {
+            name: '雕刻效果',
+            suggestedId: 'builtin.emboss',
+            implementation: '独立算子',
+            ability: '基础单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议按 emboss / relief 路线实现。',
+            params: [
+              { group: '效果设置', label: '浮雕方向', key: 'direction', type: 'choice', default: 'north_west', range: 'north_west | north_east | south_west | south_east' },
+              { group: '效果设置', label: '强度', key: 'strength', type: 'double', default: '1.0', range: '0.0 ~ 10.0' },
+              { group: '效果设置', label: '偏置', key: 'bias', type: 'double', default: '128.0', range: '0.0 ~ 255.0' },
+              { group: '效果设置', label: '灰度化后处理', key: 'convertToGray', type: 'boolean', default: 'false', range: 'true | false' }
+            ]
+          },
+          {
+            name: '特殊效果',
+            suggestedId: 'builtin.special_effect',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['confirm'],
+            note: '“特殊效果”目前过于宽泛。我先提案做成预设家族，等你确认哪些预设要保留，再收口成正式目录。',
+            params: [
+              { group: '效果设置', label: '预设类型', key: 'preset', type: 'choice', default: 'cartoon', range: 'cartoon | oil_paint | posterize | negative | frosted_glass' },
+              { group: '效果设置', label: '强度', key: 'strength', type: 'double', default: '1.0', range: '0.0 ~ 10.0' },
+              { group: '效果设置', label: '平滑半径', key: 'radius', type: 'integer', default: '5', range: '1 ~ 51' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '图像检测',
+        summary: '这一类里建议把“霍夫线 / 霍夫圆”拆开；“角点检测”先做成 Harris / Shi-Tomasi 家族；`SURF` 明确标记为规范保留。',
+        operators: [
+          {
+            name: '轮廓检测',
+            suggestedId: 'builtin.contour_detect',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 统计信息',
+            tags: ['direct'],
+            note: '建议输出轮廓数量、面积统计，同时支持在结果图上描边。',
+            params: [
+              { group: '轮廓设置', label: '检索模式', key: 'retrievalMode', type: 'choice', default: 'external', range: 'external | list | ccomp | tree' },
+              { group: '轮廓设置', label: '近似模式', key: 'approxMode', type: 'choice', default: 'simple', range: 'none | simple | tc89_l1 | tc89_kcos' },
+              { group: '轮廓设置', label: '最小面积', key: 'minArea', type: 'double', default: '10.0', range: '0.0 ~ 100000000.0' },
+              { group: '轮廓设置', label: '最大面积', key: 'maxArea', type: 'double', default: '0.0', range: '0 表示不限；0.0 ~ 100000000.0' },
+              { group: '绘制设置', label: '绘制模式', key: 'drawMode', type: 'choice', default: 'outline', range: 'outline | filled | bbox' },
+              { group: '绘制设置', label: '线宽', key: 'thickness', type: 'integer', default: '2', range: '1 ~ 20' }
+            ]
+          },
+          {
+            name: '霍夫直线检测',
+            suggestedId: 'builtin.hough_lines',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 统计信息',
+            tags: ['direct'],
+            note: '建议同时支持标准霍夫和概率霍夫。',
+            params: [
+              { group: '检测设置', label: '算法模式', key: 'mode', type: 'choice', default: 'probabilistic', range: 'standard | probabilistic' },
+              { group: '检测设置', label: 'Rho 精度', key: 'rho', type: 'double', default: '1.0', range: '0.1 ~ 10.0' },
+              { group: '检测设置', label: 'Theta 精度（度）', key: 'thetaDeg', type: 'double', default: '1.0', range: '0.1 ~ 180.0' },
+              { group: '检测设置', label: '阈值', key: 'threshold', type: 'integer', default: '80', range: '1 ~ 1000' },
+              { group: '检测设置', label: '最短线长', key: 'minLineLength', type: 'double', default: '30.0', range: '0.0 ~ 100000.0', visible: 'mode = probabilistic' },
+              { group: '检测设置', label: '最大间隙', key: 'maxLineGap', type: 'double', default: '10.0', range: '0.0 ~ 100000.0', visible: 'mode = probabilistic' }
+            ]
+          },
+          {
+            name: '霍夫圆检测',
+            suggestedId: 'builtin.hough_circles',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 统计信息',
+            tags: ['direct'],
+            note: '推荐基于 `HOUGH_GRADIENT`。',
+            params: [
+              { group: '检测设置', label: 'dp', key: 'dp', type: 'double', default: '1.0', range: '1.0 ~ 10.0' },
+              { group: '检测设置', label: '最小圆心距', key: 'minDist', type: 'double', default: '20.0', range: '0.0 ~ 100000.0' },
+              { group: '检测设置', label: 'Param1', key: 'param1', type: 'double', default: '100.0', range: '0.0 ~ 500.0', note: '通常对应内部 Canny 高阈值' },
+              { group: '检测设置', label: 'Param2', key: 'param2', type: 'double', default: '30.0', range: '0.0 ~ 500.0', note: '圆心累加器阈值' },
+              { group: '检测设置', label: '最小半径', key: 'minRadius', type: 'integer', default: '0', range: '0 ~ 100000' },
+              { group: '检测设置', label: '最大半径', key: 'maxRadius', type: 'integer', default: '0', range: '0 表示不限；0 ~ 100000' }
+            ]
+          },
+          {
+            name: '角点检测',
+            suggestedId: 'builtin.corner_detect',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 点集',
+            tags: ['direct'],
+            note: '建议先支持 `Shi-Tomasi` 和 `Harris` 两种方式。',
+            params: [
+              { group: '检测设置', label: '检测方法', key: 'method', type: 'choice', default: 'shi_tomasi', range: 'shi_tomasi | harris' },
+              { group: '检测设置', label: '最大角点数', key: 'maxCorners', type: 'integer', default: '200', range: '1 ~ 10000' },
+              { group: '检测设置', label: '质量等级', key: 'qualityLevel', type: 'double', default: '0.01', range: '0.001 ~ 1.0' },
+              { group: '检测设置', label: '最小距离', key: 'minDistance', type: 'double', default: '10.0', range: '0.0 ~ 1000.0' },
+              { group: '检测设置', label: '块大小', key: 'blockSize', type: 'integer', default: '3', range: '1 ~ 31' },
+              { group: 'Harris 设置', label: 'Harris k', key: 'harrisK', type: 'double', default: '0.04', range: '0.01 ~ 0.2', visible: 'method = harris' }
+            ]
+          },
+          {
+            name: '连通域检测',
+            suggestedId: 'builtin.connected_components',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 标签统计',
+            tags: ['direct'],
+            note: '建议输出彩色标签图、每个连通域面积、边界框等统计数据。',
+            params: [
+              { group: '检测设置', label: '连通性', key: 'connectivity', type: 'choice', default: '8', range: '4 | 8' },
+              { group: '筛选设置', label: '最小面积', key: 'minArea', type: 'integer', default: '1', range: '1 ~ 100000000' },
+              { group: '筛选设置', label: '最大面积', key: 'maxArea', type: 'integer', default: '0', range: '0 表示不限；1 ~ 100000000' },
+              { group: '输出设置', label: '彩色显示标签', key: 'colorize', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '输出设置', label: '绘制外接框', key: 'drawBBox', type: 'boolean', default: 'true', range: 'true | false' }
+            ]
+          },
+          {
+            name: 'SURF 特征点检测',
+            suggestedId: 'builtin.surf_keypoints',
+            implementation: '规范保留，SDK 先占位',
+            ability: '多结果或多输入型',
+            interaction: 'none',
+            output: '图像 + 关键点',
+            tags: ['placeholder'],
+            note: '规范层保留 SURF 名称；当前 SDK 没有 `xfeatures2d`，落地时先允许 `backend = sift / orb / akaze` 代打。',
+            params: [
+              { group: '后端设置', label: '实际后端', key: 'backend', type: 'choice', default: 'sift', range: 'surf | sift | orb | akaze', note: '当前实现默认用 sift；surf 需 SDK 升级' },
+              { group: 'SURF 规范参数', label: 'Hessian Threshold', key: 'hessianThreshold', type: 'double', default: '400.0', range: '1.0 ~ 5000.0' },
+              { group: 'SURF 规范参数', label: 'Octaves', key: 'nOctaves', type: 'integer', default: '4', range: '1 ~ 8' },
+              { group: 'SURF 规范参数', label: 'Octave Layers', key: 'nOctaveLayers', type: 'integer', default: '3', range: '1 ~ 8' },
+              { group: 'SURF 规范参数', label: 'Extended Descriptor', key: 'extended', type: 'boolean', default: 'false', range: 'true | false' },
+              { group: 'SURF 规范参数', label: 'Upright', key: 'upright', type: 'boolean', default: 'false', range: 'true | false' },
+              { group: '绘制设置', label: '最大显示数量', key: 'maxDisplayCount', type: 'integer', default: '300', range: '1 ~ 10000' }
+            ]
+          },
+          {
+            name: 'SIFT 特征点检测',
+            suggestedId: 'builtin.sift_keypoints',
+            implementation: '独立算子',
+            ability: '多结果或多输入型',
+            interaction: 'none',
+            output: '图像 + 关键点',
+            tags: ['multi'],
+            note: '这个在当前 SDK 下可以直接做。',
+            params: [
+              { group: '检测设置', label: '特征点数量上限', key: 'nFeatures', type: 'integer', default: '0', range: '0 表示不限；0 ~ 100000' },
+              { group: '检测设置', label: 'Octave Layers', key: 'nOctaveLayers', type: 'integer', default: '3', range: '1 ~ 8' },
+              { group: '检测设置', label: 'Contrast Threshold', key: 'contrastThreshold', type: 'double', default: '0.04', range: '0.001 ~ 1.0' },
+              { group: '检测设置', label: 'Edge Threshold', key: 'edgeThreshold', type: 'double', default: '10.0', range: '1.0 ~ 100.0' },
+              { group: '检测设置', label: 'Sigma', key: 'sigma', type: 'double', default: '1.6', range: '0.1 ~ 10.0' },
+              { group: '绘制设置', label: 'Rich Keypoints', key: 'drawRichKeypoints', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '绘制设置', label: '最大显示数量', key: 'maxDisplayCount', type: 'integer', default: '300', range: '1 ~ 10000' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '图像分割',
+        summary: '这一类是当前框架最容易被拉出舒适区的地方：既有纯参数分割，也有强交互分割。建议首批至少把交互规格提前定好。',
+        operators: [
+          {
+            name: 'K-均值聚类分割',
+            suggestedId: 'builtin.segment_kmeans',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '建议支持颜色特征和颜色+空间特征两种模式。',
+            params: [
+              { group: '聚类设置', label: '聚类数 K', key: 'clusterCount', type: 'integer', default: '4', range: '2 ~ 32' },
+              { group: '聚类设置', label: '颜色空间', key: 'colorSpace', type: 'choice', default: 'lab', range: 'bgr | hsv | lab' },
+              { group: '聚类设置', label: '加入空间坐标', key: 'includeSpatialXY', type: 'boolean', default: 'false', range: 'true | false' },
+              { group: '聚类设置', label: '空间权重', key: 'spatialWeight', type: 'double', default: '1.0', range: '0.0 ~ 1000.0', visible: 'includeSpatialXY = true' },
+              { group: '聚类设置', label: '最大迭代次数', key: 'maxIterations', type: 'integer', default: '20', range: '1 ~ 1000' },
+              { group: '聚类设置', label: '停止阈值 Epsilon', key: 'epsilon', type: 'double', default: '1.0', range: '0.0001 ~ 100.0' },
+              { group: '聚类设置', label: '尝试次数', key: 'attempts', type: 'integer', default: '3', range: '1 ~ 100' }
+            ]
+          },
+          {
+            name: '浸水填充',
+            suggestedId: 'builtin.flood_fill',
+            implementation: '独立算子',
+            ability: '交互型单输入',
+            interaction: 'seed_points_on_source',
+            output: '图像 + 可选掩码',
+            tags: ['interactive'],
+            note: '你写的是“随机种子点”，我这里先按“在原图点击 1~N 个种子点”设计。如果你想要自动随机撒点，再加自动模式。',
+            params: [
+              { group: '交互设置', label: '种子模式', key: 'seedMode', type: 'choice', default: 'manual_click', range: 'manual_click | auto_random' },
+              { group: '填充设置', label: '连通性', key: 'connectivity', type: 'choice', default: '4', range: '4 | 8' },
+              { group: '填充设置', label: 'Lo Diff', key: 'loDiff', type: 'integer', default: '20', range: '0 ~ 255' },
+              { group: '填充设置', label: 'Up Diff', key: 'upDiff', type: 'integer', default: '20', range: '0 ~ 255' },
+              { group: '填充设置', label: '固定范围', key: 'fixedRange', type: 'boolean', default: 'false', range: 'true | false' },
+              { group: '输出设置', label: '输出模式', key: 'outputMode', type: 'choice', default: 'overlay', range: 'overlay | fill_color | mask_only' },
+              { group: '输出设置', label: '填充颜色', key: 'fillColor', type: 'string', default: '#00ff99', range: 'HEX 颜色值', visible: 'outputMode != mask_only' }
+            ]
+          },
+          {
+            name: '分水岭分割',
+            suggestedId: 'builtin.segment_watershed',
+            implementation: '家族算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像 + 标记结果',
+            tags: ['direct'],
+            note: '首版建议先做自动 marker 路线，不强行上手绘 marker。',
+            params: [
+              { group: '模式设置', label: 'Marker 模式', key: 'markerMode', type: 'choice', default: 'distance_transform_auto', range: 'distance_transform_auto | contour_auto' },
+              { group: '预处理设置', label: '开运算核尺寸', key: 'openingKernel', type: 'integer', default: '3', range: '1 ~ 31' },
+              { group: '预处理设置', label: '膨胀迭代次数', key: 'dilateIterations', type: 'integer', default: '3', range: '1 ~ 20' },
+              { group: 'Marker 设置', label: '距离阈值比例', key: 'distanceThresholdRatio', type: 'double', default: '0.35', range: '0.01 ~ 1.0' },
+              { group: 'Marker 设置', label: '最小 marker 面积', key: 'minMarkerArea', type: 'integer', default: '32', range: '1 ~ 1000000' },
+              { group: '输出设置', label: '边界颜色', key: 'boundaryColor', type: 'string', default: '#ff2d55', range: 'HEX 颜色值' }
+            ]
+          },
+          {
+            name: 'GrabCut 抠图',
+            suggestedId: 'builtin.segment_grabcut',
+            implementation: '独立算子',
+            ability: '交互型单输入',
+            interaction: 'rect_on_source',
+            output: '前景图 + 掩码 + 叠加图',
+            tags: ['interactive'],
+            note: '首版建议先做矩形初始化；后续再扩手工前景/背景涂抹。',
+            params: [
+              { group: '交互设置', label: '初始化模式', key: 'initMode', type: 'choice', default: 'rect', range: 'rect | mask', note: '首版可只开放 rect' },
+              { group: '分割设置', label: '迭代次数', key: 'iterCount', type: 'integer', default: '5', range: '1 ~ 20' },
+              { group: '分割设置', label: '输出模式', key: 'outputMode', type: 'choice', default: 'foreground_rgba', range: 'foreground_rgba | mask | overlay' },
+              { group: '分割设置', label: '边缘羽化半径', key: 'featherRadius', type: 'integer', default: '0', range: '0 ~ 50' }
+            ]
+          },
+          {
+            name: 'MeanShift 均值漂移分割',
+            suggestedId: 'builtin.segment_meanshift',
+            implementation: '独立算子',
+            ability: '高级单输入单输出',
+            interaction: 'none',
+            output: '图像',
+            tags: ['direct'],
+            note: '可基于 `pyrMeanShiftFiltering` 落地。',
+            params: [
+              { group: '分割设置', label: '空间半径', key: 'spatialRadius', type: 'double', default: '10.0', range: '1.0 ~ 100.0' },
+              { group: '分割设置', label: '颜色半径', key: 'colorRadius', type: 'double', default: '20.0', range: '1.0 ~ 255.0' },
+              { group: '分割设置', label: '金字塔层数', key: 'maxLevel', type: 'integer', default: '1', range: '0 ~ 4' },
+              { group: '终止条件', label: '最大迭代次数', key: 'termMaxCount', type: 'integer', default: '5', range: '1 ~ 100' },
+              { group: '终止条件', label: 'Epsilon', key: 'termEpsilon', type: 'double', default: '1.0', range: '0.001 ~ 20.0' }
+            ]
+          }
+        ]
+      },
+      {
+        category: '特征匹配',
+        summary: '这一类第一步就必须把“第二张图输入”和“匹配结果显示”定下来，否则即便算法写了，也没法在 UI 上真正可用。',
+        operators: [
+          {
+            name: 'SURF 特征匹配',
+            suggestedId: 'builtin.surf_match',
+            implementation: '规范保留，SDK 先占位',
+            ability: '多结果或多输入型',
+            interaction: 'second_image_required',
+            output: '匹配可视化图 + 匹配点集 + 可选单应矩阵',
+            tags: ['multi', 'placeholder'],
+            note: '规范层保留 SURF 名称；现阶段落地建议允许 `backend = sift / orb / akaze`，默认先用 SIFT。',
+            params: [
+              { group: '输入设置', label: '第二张图来源', key: 'secondImageSource', type: 'choice', default: 'external_pick', range: 'external_pick | current_workspace_cache' },
+              { group: '后端设置', label: '实际后端', key: 'backend', type: 'choice', default: 'sift', range: 'surf | sift | orb | akaze', note: '当前 SDK 默认只能直接做 sift / orb / akaze' },
+              { group: '匹配设置', label: '匹配器类型', key: 'matcherType', type: 'choice', default: 'bf', range: 'bf | flann' },
+              { group: '匹配设置', label: '比率检验阈值', key: 'ratioTest', type: 'double', default: '0.75', range: '0.1 ~ 1.0' },
+              { group: '匹配设置', label: 'Cross Check', key: 'crossCheck', type: 'boolean', default: 'false', range: 'true | false' },
+              { group: '匹配设置', label: '最大显示匹配数', key: 'maxMatches', type: 'integer', default: '80', range: '1 ~ 5000' },
+              { group: '几何验证', label: 'RANSAC 过滤', key: 'useRansac', type: 'boolean', default: 'true', range: 'true | false' },
+              { group: '几何验证', label: 'RANSAC 重投影阈值', key: 'ransacReprojThreshold', type: 'double', default: '3.0', range: '0.1 ~ 50.0', visible: 'useRansac = true' },
+              { group: '输出设置', label: '仅显示内点', key: 'showInliersOnly', type: 'boolean', default: 'false', range: 'true | false' }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const root = document.getElementById('catalogRoot');
+    const chipsRoot = document.getElementById('categoryChips');
+    const metricsRoot = document.getElementById('metrics');
+    const searchInput = document.getElementById('searchInput');
+
+    const statusTitles = {
+      direct: '可直接实现',
+      interactive: '需要画布交互',
+      multi: '需要第二输入或附加结果',
+      placeholder: 'SURF 规范保留 / SDK 占位',
+      confirm: '待你确认定义'
+    };
+
+    function slugify(text) {
+      return text
+        .toLowerCase()
+        .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function flattenOperators() {
+      return catalog.flatMap(section => section.operators.map(operator => ({ ...operator, category: section.category })));
+    }
+
+    function renderMetrics() {
+      const operators = flattenOperators();
+      const directCount = operators.filter(operator => operator.tags.includes('direct')).length;
+      const interactiveCount = operators.filter(operator => operator.tags.includes('interactive')).length;
+      const specialCount = operators.filter(operator => operator.tags.includes('placeholder') || operator.tags.includes('confirm') || operator.tags.includes('multi')).length;
+
+      const metrics = [
+        { value: operators.length, label: '算子提案总数' },
+        { value: directCount, label: '直接可实现或首批可落地' },
+        { value: interactiveCount + ' / ' + specialCount, label: '交互型 / 特殊能力型' }
+      ];
+
+      metricsRoot.innerHTML = metrics.map(metric => `
+        <div class="metric">
+          <strong>${metric.value}</strong>
+          <span>${metric.label}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderChips() {
+      chipsRoot.innerHTML = catalog.map(section => `
+        <a class="chip" href="#${slugify(section.category)}">${section.category}</a>
+      `).join('');
+    }
+
+    function renderCatalog() {
+      root.innerHTML = catalog.map(section => `
+        <section class="section" id="${slugify(section.category)}" data-category="${section.category}">
+          <div class="section-head">
+            <div>
+              <h2>${section.category}</h2>
+              <p>${section.summary}</p>
+            </div>
+            <div class="operator-count">${section.operators.length} 个算子</div>
+          </div>
+          <div class="operator-grid">
+            ${section.operators.map(operator => renderOperatorCard(section.category, operator)).join('')}
+          </div>
+        </section>
+      `).join('');
+    }
+
+    function renderOperatorCard(category, operator) {
+      const searchable = [
+        category,
+        operator.name,
+        operator.suggestedId,
+        operator.implementation,
+        operator.ability,
+        operator.interaction,
+        operator.output,
+        operator.note,
+        ...operator.tags,
+        ...operator.params.map(param => [
+          param.group,
+          param.label,
+          param.key,
+          param.type,
+          param.default,
+          param.range,
+          param.visible || '',
+          param.note || ''
+        ].join(' '))
+      ].join(' ').toLowerCase();
+
+      return `
+        <article class="operator-card" data-search="${searchable}">
+          <div class="operator-top">
+            <h3>${operator.name}</h3>
+            <div class="operator-id">${operator.suggestedId}</div>
+            <div class="tag-row">
+              ${operator.tags.map(tag => `<span class="tag ${tag}">${statusTitles[tag]}</span>`).join('')}
+            </div>
+            <p class="operator-note">${operator.note}</p>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <small>建议实现方式</small>
+              <strong>${operator.implementation}</strong>
+            </div>
+            <div class="meta-item">
+              <small>能力类型</small>
+              <strong>${operator.ability}</strong>
+            </div>
+            <div class="meta-item">
+              <small>交互类型</small>
+              <strong><code>${operator.interaction}</code></strong>
+            </div>
+            <div class="meta-item">
+              <small>结果类型</small>
+              <strong>${operator.output}</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>分组</th>
+                  <th>参数名</th>
+                  <th>Key</th>
+                  <th>类型</th>
+                  <th>默认值</th>
+                  <th>范围 / 选项</th>
+                  <th>条件显示</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${operator.params.map(param => `
+                  <tr>
+                    <td>${param.group}</td>
+                    <td>${param.label}</td>
+                    <td><code>${param.key}</code></td>
+                    <td>${param.type}</td>
+                    <td>${param.default}</td>
+                    <td>${param.range}</td>
+                    <td>${param.visible || '始终'}</td>
+                    <td>${param.note || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      `;
+    }
+
+    function applySearch(keyword) {
+      const normalized = keyword.trim().toLowerCase();
+      const sections = document.querySelectorAll('.section');
+
+      sections.forEach(section => {
+        const cards = Array.from(section.querySelectorAll('.operator-card'));
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+          const matched = !normalized || card.dataset.search.includes(normalized);
+          card.hidden = !matched;
+          if (matched) {
+            visibleCount += 1;
+          }
+        });
+
+        section.hidden = visibleCount === 0;
+        const countNode = section.querySelector('.operator-count');
+        if (countNode) {
+          countNode.textContent = `${visibleCount} / ${cards.length} 个算子`;
+        }
+      });
+
+      if (Array.from(sections).every(section => section.hidden)) {
+        root.insertAdjacentHTML('beforeend', '<div class="empty-state" id="emptyState">没有匹配到结果，换个关键词试试，比如：SIFT、透视、sigma、Otsu、GrabCut。</div>');
+      } else {
+        const emptyNode = document.getElementById('emptyState');
+        if (emptyNode) {
+          emptyNode.remove();
+        }
+      }
+    }
+
+    renderMetrics();
+    renderChips();
+    renderCatalog();
+
+    searchInput.addEventListener('input', event => {
+      applySearch(event.target.value);
+    });
+  </script>
+</body>
+</html>

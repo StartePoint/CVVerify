@@ -1,0 +1,25 @@
+#pragma once
+
+#include <QString>
+#include <QStringList>
+
+#include "core/detection/DetectionModelDescriptor.h"
+#include "core/pipeline/IPipelineStep.h"
+
+class YoloDetectionStep : public IPipelineStep
+{
+public:
+    YoloDetectionStep(DetectionModelDescriptor descriptor, QString modelPath, QStringList labels);
+
+    QString id() const override;
+    QString displayName() const override;
+    StepSchema schema() const override;
+    QVariantMap parameterValues() const override;
+    void setParameterValues(const QVariantMap& values) override;
+    StepResult execute(FramePacket& frame, const RunContext& context) override;
+
+private:
+    DetectionModelDescriptor m_descriptor;
+    QString m_modelPath;
+    QStringList m_labels;
+};

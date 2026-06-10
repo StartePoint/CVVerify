@@ -1,27 +1,39 @@
 # Code of Conduct
 
-## Our Pledge
+## Purpose
 
-We want participation in this project to be respectful, constructive, and welcoming.
+CVVerify is an engineering repository. Discussions should help contributors ship better code, better documentation, and clearer verification workflows.
 
 ## Expected Behavior
 
-- Be respectful in communication
-- Focus on technical issues, not personal attacks
-- Welcome questions and different levels of experience
-- Provide actionable feedback
+- Be respectful in technical discussions.
+- Focus feedback on behavior, code, design, and evidence.
+- Welcome contributors with different experience levels.
+- Ask clarifying questions before assuming bad intent.
+- Keep review comments actionable and specific.
 
 ## Unacceptable Behavior
 
-- Harassment or abusive language
-- Personal attacks
-- Discriminatory behavior
-- Repeated bad-faith disruption
+- Harassment, abuse, or intimidation
+- Discriminatory language or exclusionary conduct
+- Personal attacks or repeated hostile review behavior
+- Spam, deliberate derailment, or bad-faith disruption
+- Publishing private information without permission
+
+## Scope
+
+This code of conduct applies to:
+
+- issues
+- pull requests
+- review comments
+- repository discussions
+- project-linked chat or coordination spaces managed by maintainers
 
 ## Enforcement
 
-Project maintainers may remove, edit, or reject contributions or participation that violate this code of conduct.
+Maintainers may edit, hide, lock, or remove content that violates this policy. They may also limit or revoke participation for repeated or severe violations.
 
 ## Reporting
 
-For concerns, contact the maintainers through private repository channels once they are established.
+If you need to report a conduct issue, use a private maintainer contact channel when one is published for the project. Avoid escalating sensitive situations in public issue threads unless immediate visibility is necessary for safety.
