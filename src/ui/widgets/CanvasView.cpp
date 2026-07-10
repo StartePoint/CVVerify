@@ -7,6 +7,7 @@
 #include <QPixmap>
 #include <QResizeEvent>
 #include <QVBoxLayout>
+#include <QWheelEvent>
 
 CanvasView::CanvasView(QWidget* parent)
     : QWidget(parent)
@@ -27,8 +28,8 @@ void CanvasView::setImage(const QImage& image)
     if (image.isNull()) {
         m_hasOverlayRectangle = false;
         m_overlayPoints.clear();
+        m_label->clear();
         m_label->setText(m_placeholderText);
-        m_label->setPixmap(QPixmap());
         return;
     }
 
@@ -57,6 +58,17 @@ void CanvasView::setOverlayRectangle(const QRectF& rectangle, bool visible)
     updateDisplayedContent();
 }
 
+void CanvasView::setZoomFactor(double factor)
+{
+    m_zoomFactor = qBound(0.25, factor, 4.0);
+    updateDisplayedContent();
+}
+
+double CanvasView::zoomFactor() const
+{
+    return m_zoomFactor;
+}
+
 void CanvasView::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
@@ -79,16 +91,35 @@ void CanvasView::updatePixmap()
 
 bool CanvasView::eventFilter(QObject* watched, QEvent* event)
 {
-    if (watched == m_label && event && event->type() == QEvent::MouseButtonPress) {
-        auto* mouseEvent = static_cast<QMouseEvent*>(event);
-        QPointF imagePoint;
-        if (mapLabelPointToImagePoint(mouseEvent->pos(), &imagePoint)) {
-            emit imagePointClicked(imagePoint);
-            return true;
+    if (watched == m_label && event) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+            QPointF imagePoint;
+            if (mapLabelPointToImagePoint(mouseEvent->pos(), &imagePoint)) {
+                emit imagePointClicked(imagePoint);
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseMove) {
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+            QPointF imagePoint;
+            if (mapLabelPointToImagePoint(mouseEvent->pos(), &imagePoint)) {
+                emit cursorMoved(imagePoint, sampleImageColor(imagePoint));
+            }
         }
     }
 
     return QWidget::eventFilter(watched, event);
+}
+
+void CanvasView::wheelEvent(QWheelEvent* event)
+{
+    if (!event) {
+        return;
+    }
+
+    const double delta = event->angleDelta().y() > 0 ? 1.1 : 0.9;
+    setZoomFactor(m_zoomFactor * delta);
+    event->accept();
 }
 
 bool CanvasView::mapLabelPointToImagePoint(const QPoint& labelPoint, QPointF* imagePoint) const
@@ -167,9 +198,23 @@ void CanvasView::updateDisplayedContent()
     }
 
     const QPixmap pixmap = QPixmap::fromImage(displayImage);
+    const QSize targetSize(
+        qMax(1, static_cast<int>(m_label->size().width() * m_zoomFactor)),
+        qMax(1, static_cast<int>(m_label->size().height() * m_zoomFactor)));
     m_label->setPixmap(pixmap.scaled(
-        m_label->size(),
+        targetSize,
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation
     ));
+}
+
+QColor CanvasView::sampleImageColor(const QPointF& imagePoint) const
+{
+    if (m_image.isNull()) {
+        return QColor();
+    }
+
+    const int x = qBound(0, static_cast<int>(imagePoint.x()), m_image.width() - 1);
+    const int y = qBound(0, static_cast<int>(imagePoint.y()), m_image.height() - 1);
+    return m_image.pixelColor(x, y);
 }

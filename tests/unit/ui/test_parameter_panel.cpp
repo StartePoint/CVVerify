@@ -117,10 +117,10 @@ void ParameterPanelTest::emitsUpdatedValuesWhenStringChanges()
     panel.setStep(step);
 
     QSignalSpy spy(&panel, &ParameterPanel::parameterValuesChanged);
-    const auto lineEdits = panel.findChildren<QLineEdit*>();
-    QVERIFY(!lineEdits.isEmpty());
+    auto* lineEdit = panel.findChild<QLineEdit*>(QStringLiteral("parameterLineEdit_boundaryColor"));
+    QVERIFY(lineEdit != nullptr);
 
-    lineEdits.constFirst()->setText("#00ff99");
+    lineEdit->setText("#00ff99");
 
     QVERIFY(spy.count() >= 1);
     const QVariantMap values = spy.takeLast().at(0).toMap();
@@ -141,9 +141,9 @@ void ParameterPanelTest::hidesStringEditorWhenVisibleWhenIsFalse()
     ParameterPanel panel;
     panel.setStep(step);
 
-    const auto lineEdits = panel.findChildren<QLineEdit*>();
-    QVERIFY(!lineEdits.isEmpty());
-    QVERIFY(!lineEdits.constFirst()->isVisible());
+    auto* lineEdit = panel.findChild<QLineEdit*>(QStringLiteral("parameterLineEdit_boundaryColor"));
+    QVERIFY(lineEdit != nullptr);
+    QVERIFY(!lineEdit->isVisible());
 }
 
 int runParameterPanelTests(int argc, char* argv[])

@@ -12,9 +12,11 @@
 #include "core/operators/builtin/ConnectedComponentsOperator.h"
 #include "core/operators/builtin/ContourDetectOperator.h"
 #include "core/operators/builtin/CornerDetectOperator.h"
+#include "core/operators/builtin/CropOperator.h"
 #include "core/operators/builtin/EmbossOperator.h"
 #include "core/operators/builtin/FiberGlowOperator.h"
 #include "core/operators/builtin/FloodFillOperator.h"
+#include "core/operators/builtin/FlipOperator.h"
 #include "core/operators/builtin/GaussianBlurOperator.h"
 #include "core/operators/builtin/GrabCutOperator.h"
 #include "core/operators/builtin/GrayscaleOperator.h"
@@ -35,12 +37,14 @@
 #include "core/operators/builtin/PolarTransformOperator.h"
 #include "core/operators/builtin/PerspectiveTransformOperator.h"
 #include "core/operators/builtin/ResizeOperator.h"
+#include "core/operators/builtin/RotateOperator.h"
 #include "core/operators/builtin/ScharrOperator.h"
 #include "core/operators/builtin/SiftKeypointsOperator.h"
 #include "core/operators/builtin/SobelOperator.h"
 #include "core/operators/builtin/SpecialEffectOperator.h"
 #include "core/operators/builtin/SurfKeypointsPlaceholderOperator.h"
 #include "core/operators/builtin/SurfMatchPlaceholderOperator.h"
+#include "core/operators/builtin/TemplateMatchOperator.h"
 #include "core/operators/builtin/ThresholdOperator.h"
 #include "core/operators/builtin/TriangleThresholdOperator.h"
 #include "core/operators/builtin/WatershedSegmentationOperator.h"
@@ -157,6 +161,27 @@ void registerBuiltinOperators(OperatorRegistry& registry)
         OperatorInteractionType::None,
         OperatorResultType::ImageOnly, [] {
         return std::make_shared<ResizeOperator>();
+    }});
+
+    registry.registerOperator({"builtin.crop", "Crop", kCategoryEnhancementTransform,
+        OperatorCapabilityType::BasicSingleIO,
+        OperatorInteractionType::None,
+        OperatorResultType::ImageOnly, [] {
+        return std::make_shared<CropOperator>();
+    }});
+
+    registry.registerOperator({"builtin.rotate", "Rotate", kCategoryEnhancementTransform,
+        OperatorCapabilityType::BasicSingleIO,
+        OperatorInteractionType::None,
+        OperatorResultType::ImageOnly, [] {
+        return std::make_shared<RotateOperator>();
+    }});
+
+    registry.registerOperator({"builtin.flip", "Flip", kCategoryEnhancementTransform,
+        OperatorCapabilityType::BasicSingleIO,
+        OperatorInteractionType::None,
+        OperatorResultType::ImageOnly, [] {
+        return std::make_shared<FlipOperator>();
     }});
 
     registry.registerOperator({"builtin.threshold", "Threshold", kCategoryThresholding,
@@ -304,6 +329,13 @@ void registerBuiltinOperators(OperatorRegistry& registry)
         OperatorInteractionType::None,
         OperatorResultType::ImageWithStats, [] {
         return std::make_shared<ConnectedComponentsOperator>();
+    }});
+
+    registry.registerOperator({"builtin.template_match", "Template Match", kCategoryImageDetection,
+        OperatorCapabilityType::AdvancedSingleIO,
+        OperatorInteractionType::None,
+        OperatorResultType::ImageWithStats, [] {
+        return std::make_shared<TemplateMatchOperator>();
     }});
 
     registry.registerOperator({"builtin.surf_keypoints", "SURF Keypoints", kCategoryImageDetection,

@@ -1,0 +1,92 @@
+{
+  "id": "builtin.perspective_transform",
+  "displayName": "Perspective Transform",
+  "category": "Transform",
+  "parameters": [
+    {
+      "key": "outputWidth",
+      "displayName": "Output Width",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 1024,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "outputHeight",
+      "displayName": "Output Height",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 768,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "interpolation",
+      "displayName": "Interpolation",
+      "group": "输出设置",
+      "type": "choice",
+      "default": "linear",
+      "choices": [
+        {
+          "value": "nearest",
+          "label": "Nearest"
+        },
+        {
+          "value": "linear",
+          "label": "Linear"
+        },
+        {
+          "value": "cubic",
+          "label": "Cubic"
+        },
+        {
+          "value": "area",
+          "label": "Area"
+        },
+        {
+          "value": "lanczos4",
+          "label": "Lanczos4"
+        }
+      ]
+    },
+    {
+      "key": "borderType",
+      "displayName": "Border Type",
+      "group": "输出设置",
+      "type": "choice",
+      "default": "constant",
+      "choices": [
+        {
+          "value": "constant",
+          "label": "Constant"
+        },
+        {
+          "value": "replicate",
+          "label": "Replicate"
+        },
+        {
+          "value": "reflect",
+          "label": "Reflect"
+        },
+        {
+          "value": "reflect101",
+          "label": "Reflect 101"
+        }
+      ]
+    },
+    {
+      "key": "borderValue",
+      "displayName": "Border Value",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "visibleWhen": "borderType=constant"
+    }
+  ]
+}

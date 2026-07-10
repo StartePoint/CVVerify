@@ -1,0 +1,57 @@
+{
+  "id": "builtin.segment_meanshift",
+  "displayName": "MeanShift Segmentation",
+  "category": "Segmentation",
+  "parameters": [
+    {
+      "key": "spatialRadius",
+      "displayName": "Spatial Radius",
+      "group": "分割设置",
+      "type": "double",
+      "default": 10.0,
+      "min": 1.0,
+      "max": 100.0,
+      "step": 1.0
+    },
+    {
+      "key": "colorRadius",
+      "displayName": "Color Radius",
+      "group": "分割设置",
+      "type": "double",
+      "default": 20.0,
+      "min": 1.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "maxLevel",
+      "displayName": "Max Level",
+      "group": "分割设置",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "termMaxCount",
+      "displayName": "Term Max Count",
+      "group": "终止条件",
+      "type": "integer",
+      "default": 5,
+      "min": 1,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "key": "termEpsilon",
+      "displayName": "Term Epsilon",
+      "group": "终止条件",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.001,
+      "max": 20.0,
+      "step": 0.1
+    }
+  ]
+}

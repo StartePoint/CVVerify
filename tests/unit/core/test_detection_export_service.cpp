@@ -24,6 +24,8 @@ private slots:
     void exportsSnapshotFilesWhenContextProvided();
     void exportsBatchImagesAndCsv();
     void exportsOverlayVideoAndJson();
+    void exportsTensorSummaryWithImageResult();
+    void exportsSideBySideVideo();
 };
 
 void DetectionExportServiceTest::exportsOverlayImageAndJson()
@@ -225,6 +227,95 @@ void DetectionExportServiceTest::exportsOverlayVideoAndJson()
     const QString csvText = QString::fromUtf8(csvFile.readAll());
     QVERIFY(csvText.contains("processing_time_ms"));
     QVERIFY(csvText.contains("frame_id"));
+}
+
+void DetectionExportServiceTest::exportsTensorSummaryWithImageResult()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    cv::Mat image(32, 32, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    DetectionFrameResult result;
+    result.sourceId = "tensor_sample.png";
+
+    DetectionExportService::DetectionExportContext context;
+    context.tensorOutputs.insert("output_0", QVariantMap{
+        {"index", 0},
+        {"elem_count", static_cast<qlonglong>(128)},
+        {"min", 0.1},
+        {"max", 0.9},
+    });
+    context.frameArtifacts.insert("custom_tensor_outputs", QVariantList{
+        QVariantMap{{"index", 0}, {"elem_count", static_cast<qlonglong>(128)}},
+    });
+
+    QString errorMessage;
+    QVERIFY(DetectionExportService::exportImageResult(image, result, dir.path(), &errorMessage, context));
+    QVERIFY2(errorMessage.isEmpty(), qPrintable(errorMessage));
+
+    QVERIFY(QFileInfo::exists(dir.filePath("tensor_sample_tensor_summary.json")));
+
+    QFile summaryFile(dir.filePath("tensor_sample_tensor_summary.json"));
+    QVERIFY(summaryFile.open(QIODevice::ReadOnly));
+    const QJsonObject root = QJsonDocument::fromJson(summaryFile.readAll()).object();
+    QVERIFY(root.contains("tensor_outputs"));
+    QVERIFY(root.contains("custom_tensor_outputs"));
+}
+
+void DetectionExportServiceTest::exportsSideBySideVideo()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString inputVideoPath = dir.filePath("sample.avi");
+    cv::VideoWriter writer;
+    writer.open(
+        inputVideoPath.toStdString(),
+        cv::CAP_OPENCV_MJPEG,
+        cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+        5.0,
+        cv::Size(16, 16)
+    );
+    QVERIFY(writer.isOpened());
+    writer.write(cv::Mat(16, 16, CV_8UC3, cv::Scalar(0, 0, 0)));
+    writer.release();
+
+    DetectionExportService::VideoExportOptions videoOptions;
+    videoOptions.sideBySide = true;
+
+    QString errorMessage;
+    QVERIFY(DetectionExportService::exportVideoResult(
+        inputVideoPath,
+        dir.path(),
+        [](FramePacket* frame, DetectionFrameResult* result, QString* processErrorMessage) -> bool {
+            if (!frame || !result) {
+                if (processErrorMessage) {
+                    *processErrorMessage = "Invalid frame state";
+                }
+                return false;
+            }
+
+            result->frameId = frame->frameId;
+            result->timestampMs = frame->timestampMs;
+            result->sourceId = frame->sourceId;
+            frame->workingMat = frame->originalMat.clone();
+            if (processErrorMessage) {
+                processErrorMessage->clear();
+            }
+            return true;
+        },
+        &errorMessage,
+        {},
+        videoOptions
+    ));
+    QVERIFY2(errorMessage.isEmpty(), qPrintable(errorMessage));
+
+    QVERIFY(QFileInfo::exists(dir.filePath("sample_side_by_side.avi")));
+
+    cv::VideoCapture capture(dir.filePath("sample_side_by_side.avi").toStdString());
+    QVERIFY(capture.isOpened());
+    QCOMPARE(static_cast<int>(capture.get(cv::CAP_PROP_FRAME_WIDTH)), 32);
 }
 
 int runDetectionExportServiceTests(int argc, char* argv[])

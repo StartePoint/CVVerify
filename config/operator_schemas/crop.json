@@ -1,0 +1,47 @@
+{
+  "id": "builtin.crop",
+  "displayName": "Crop",
+  "category": "Transform",
+  "parameters": [
+    {
+      "key": "x",
+      "displayName": "X",
+      "group": "裁剪设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "y",
+      "displayName": "Y",
+      "group": "裁剪设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "width",
+      "displayName": "Width",
+      "group": "裁剪设置",
+      "type": "integer",
+      "default": 640,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "height",
+      "displayName": "Height",
+      "group": "裁剪设置",
+      "type": "integer",
+      "default": 480,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    }
+  ]
+}

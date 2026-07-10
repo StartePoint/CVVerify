@@ -1,0 +1,21 @@
+{
+  "pipelineId": "samples.edge_canny",
+  "displayName": "Grayscale + Canny Edge",
+  "steps": [
+    {
+      "stepId": "builtin.grayscale",
+      "displayName": "Grayscale",
+      "parameters": {}
+    },
+    {
+      "stepId": "builtin.canny",
+      "displayName": "Canny",
+      "parameters": {
+        "threshold1": 60.0,
+        "threshold2": 180.0,
+        "apertureSize": 3,
+        "useL2Gradient": false
+      }
+    }
+  ]
+}

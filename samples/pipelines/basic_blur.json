@@ -1,0 +1,16 @@
+{
+  "pipelineId": "samples.basic_blur",
+  "displayName": "Basic Gaussian Blur",
+  "steps": [
+    {
+      "stepId": "builtin.gaussian_blur",
+      "displayName": "Gaussian Blur",
+      "parameters": {
+        "kernelWidth": 9,
+        "kernelHeight": 9,
+        "sigmaX": 1.5,
+        "sigmaY": 0.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "id": "builtin.histogram_line",
+  "displayName": "Histogram Line",
+  "category": "Enhancement",
+  "parameters": [
+    {
+      "key": "channels",
+      "displayName": "Channels",
+      "group": "统计设置",
+      "type": "choice",
+      "default": "gray",
+      "choices": [
+        {
+          "value": "gray",
+          "label": "Gray"
+        },
+        {
+          "value": "b",
+          "label": "Blue"
+        },
+        {
+          "value": "g",
+          "label": "Green"
+        },
+        {
+          "value": "r",
+          "label": "Red"
+        },
+        {
+          "value": "all_rgb",
+          "label": "All RGB"
+        }
+      ]
+    },
+    {
+      "key": "bins",
+      "displayName": "Bins",
+      "group": "统计设置",
+      "type": "integer",
+      "default": 256,
+      "min": 8,
+      "max": 512,
+      "step": 1
+    },
+    {
+      "key": "rangeMin",
+      "displayName": "Range Min",
+      "group": "统计设置",
+      "type": "double",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "rangeMax",
+      "displayName": "Range Max",
+      "group": "统计设置",
+      "type": "double",
+      "default": 255.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "normalize",
+      "displayName": "Normalize",
+      "group": "图表设置",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "yScale",
+      "displayName": "Y Scale",
+      "group": "图表设置",
+      "type": "choice",
+      "default": "linear",
+      "choices": [
+        {
+          "value": "linear",
+          "label": "Linear"
+        },
+        {
+          "value": "log",
+          "label": "Log"
+        }
+      ]
+    },
+    {
+      "key": "chartMode",
+      "displayName": "Chart Mode",
+      "group": "图表设置",
+      "type": "choice",
+      "default": "replace",
+      "choices": [
+        {
+          "value": "replace",
+          "label": "Replace Image"
+        },
+        {
+          "value": "sidecar",
+          "label": "Sidecar Chart"
+        }
+      ]
+    }
+  ]
+}

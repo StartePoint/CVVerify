@@ -1,0 +1,27 @@
+{
+  "id": "builtin.mean_blur",
+  "displayName": "Mean Blur",
+  "category": "Filtering",
+  "parameters": [
+    {
+      "key": "kernelWidth",
+      "displayName": "Kernel Width",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    },
+    {
+      "key": "kernelHeight",
+      "displayName": "Kernel Height",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    }
+  ]
+}

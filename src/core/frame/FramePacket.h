@@ -12,6 +12,8 @@ struct FramePacket
     QString sourceId;
     cv::Mat originalMat;
     cv::Mat workingMat;
+    cv::Mat sidecarMat;
+    QString sidecarKind;
     QVariantMap artifacts;
     QVariantMap tensorOutputs;
     QVariantMap annotations;
@@ -26,5 +28,10 @@ struct FramePacket
     bool hasWorkingFrame() const
     {
         return !workingMat.empty();
+    }
+
+    bool hasSidecarFrame() const
+    {
+        return !sidecarMat.empty();
     }
 };

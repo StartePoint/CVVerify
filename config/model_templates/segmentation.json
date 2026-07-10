@@ -1,0 +1,17 @@
+{
+  "modelName": "segmentation_template",
+  "taskType": "segmentation",
+  "frameworkFamily": "segmentation",
+  "input": {
+    "width": 512,
+    "height": 512,
+    "channels": 3,
+    "colorOrder": "RGB",
+    "letterbox": false,
+    "keepRatio": true,
+    "scale": 0.0039215686
+  },
+  "output": {
+    "layoutType": "segmentation_mask"
+  }
+}

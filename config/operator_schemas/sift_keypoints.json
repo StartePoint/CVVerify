@@ -1,0 +1,75 @@
+{
+  "id": "builtin.sift_keypoints",
+  "displayName": "SIFT Keypoints",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "nFeatures",
+      "displayName": "N Features",
+      "group": "检测设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100000,
+      "step": 1,
+      "tooltip": "0 means unlimited"
+    },
+    {
+      "key": "nOctaveLayers",
+      "displayName": "Octave Layers",
+      "group": "检测设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "step": 1
+    },
+    {
+      "key": "contrastThreshold",
+      "displayName": "Contrast Threshold",
+      "group": "检测设置",
+      "type": "double",
+      "default": 0.04,
+      "min": 0.001,
+      "max": 1.0,
+      "step": 0.001
+    },
+    {
+      "key": "edgeThreshold",
+      "displayName": "Edge Threshold",
+      "group": "检测设置",
+      "type": "double",
+      "default": 10.0,
+      "min": 1.0,
+      "max": 100.0,
+      "step": 0.5
+    },
+    {
+      "key": "sigma",
+      "displayName": "Sigma",
+      "group": "检测设置",
+      "type": "double",
+      "default": 1.6,
+      "min": 0.1,
+      "max": 10.0,
+      "step": 0.1
+    },
+    {
+      "key": "drawRichKeypoints",
+      "displayName": "Draw Rich Keypoints",
+      "group": "绘制设置",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "maxDisplayCount",
+      "displayName": "Max Display Count",
+      "group": "绘制设置",
+      "type": "integer",
+      "default": 300,
+      "min": 1,
+      "max": 10000,
+      "step": 1
+    }
+  ]
+}

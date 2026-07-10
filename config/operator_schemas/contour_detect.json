@@ -1,0 +1,110 @@
+{
+  "id": "builtin.contour_detect",
+  "displayName": "Contour Detect",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "retrievalMode",
+      "displayName": "Retrieval Mode",
+      "group": "轮廓设置",
+      "type": "choice",
+      "default": "external",
+      "choices": [
+        {
+          "value": "external",
+          "label": "External"
+        },
+        {
+          "value": "list",
+          "label": "List"
+        },
+        {
+          "value": "ccomp",
+          "label": "CCOMP"
+        },
+        {
+          "value": "tree",
+          "label": "Tree"
+        }
+      ]
+    },
+    {
+      "key": "approxMode",
+      "displayName": "Approx Mode",
+      "group": "轮廓设置",
+      "type": "choice",
+      "default": "simple",
+      "choices": [
+        {
+          "value": "none",
+          "label": "None"
+        },
+        {
+          "value": "simple",
+          "label": "Simple"
+        },
+        {
+          "value": "tc89_l1",
+          "label": "TC89 L1"
+        },
+        {
+          "value": "tc89_kcos",
+          "label": "TC89 KCOS"
+        }
+      ]
+    },
+    {
+      "key": "minArea",
+      "displayName": "Min Area",
+      "group": "轮廓设置",
+      "type": "double",
+      "default": 10.0,
+      "min": 0.0,
+      "max": 100000000.0,
+      "step": 1.0
+    },
+    {
+      "key": "maxArea",
+      "displayName": "Max Area",
+      "group": "轮廓设置",
+      "type": "double",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100000000.0,
+      "step": 1.0,
+      "tooltip": "0 means unlimited"
+    },
+    {
+      "key": "drawMode",
+      "displayName": "Draw Mode",
+      "group": "绘制设置",
+      "type": "choice",
+      "default": "outline",
+      "choices": [
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "filled",
+          "label": "Filled"
+        },
+        {
+          "value": "bbox",
+          "label": "Bounding Box"
+        }
+      ]
+    },
+    {
+      "key": "thickness",
+      "displayName": "Thickness",
+      "group": "绘制设置",
+      "type": "integer",
+      "default": 2,
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "visibleWhen": "drawMode=outline"
+    }
+  ]
+}

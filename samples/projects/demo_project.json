@@ -1,0 +1,30 @@
+{
+  "projectId": "samples.demo",
+  "displayName": "CVVerify Demo Project",
+  "version": "1.0",
+  "mediaSourceKind": "image",
+  "mediaSourcePath": "samples/images/checkerboard.png",
+  "pipeline": {
+    "pipelineId": "samples.basic_blur",
+    "displayName": "Basic Gaussian Blur",
+    "steps": [
+      {
+        "stepId": "builtin.gaussian_blur",
+        "displayName": "Gaussian Blur",
+        "parameters": {
+          "kernelWidth": 7,
+          "kernelHeight": 7,
+          "sigmaX": 1.2,
+          "sigmaY": 0.0
+        }
+      }
+    ]
+  },
+  "appSettings": {
+    "languageCode": "en",
+    "maxPreviewFps": 30,
+    "previewScale": 1.0,
+    "allowFrameSkip": true,
+    "previewFrameStep": 1
+  }
+}

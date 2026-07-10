@@ -1,0 +1,59 @@
+{
+  "id": "builtin.connected_components",
+  "displayName": "Connected Components",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "connectivity",
+      "displayName": "Connectivity",
+      "group": "检测设置",
+      "type": "choice",
+      "default": "8",
+      "choices": [
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "key": "minArea",
+      "displayName": "Min Area",
+      "group": "筛选设置",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 100000000,
+      "step": 1
+    },
+    {
+      "key": "maxArea",
+      "displayName": "Max Area",
+      "group": "筛选设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100000000,
+      "step": 1,
+      "tooltip": "0 means unlimited"
+    },
+    {
+      "key": "colorize",
+      "displayName": "Colorize Labels",
+      "group": "输出设置",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "drawBBox",
+      "displayName": "Draw Bounding Box",
+      "group": "输出设置",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}

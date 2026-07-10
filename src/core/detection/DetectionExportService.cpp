@@ -10,13 +10,19 @@
 #include <QTextStream>
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
 #include "core/detection/DetectionRenderComposer.h"
+#include "core/diagnostics/DiagnosticsLog.h"
+#include "infra/opencv/OpenCvImageIO.h"
 
 namespace {
 
-QJsonObject toJson(const DetectionFrameResult& result)
+QJsonObject toJson(
+    const DetectionFrameResult& result,
+    const QVariantMap& frameArtifacts = {},
+    const QVariantMap& tensorOutputs = {})
 {
     QJsonObject root;
     root.insert("frame_id", static_cast<qint64>(result.frameId));
@@ -37,6 +43,19 @@ QJsonObject toJson(const DetectionFrameResult& result)
         });
     }
     root.insert("boxes", boxes);
+
+    if (frameArtifacts.contains("classification_top_k")) {
+        root.insert("classification_top_k", QJsonArray::fromVariantList(
+            frameArtifacts.value("classification_top_k").toList()));
+    }
+    if (frameArtifacts.contains("custom_tensor_outputs")) {
+        root.insert("custom_tensor_outputs", QJsonArray::fromVariantList(
+            frameArtifacts.value("custom_tensor_outputs").toList()));
+    }
+    if (!tensorOutputs.isEmpty()) {
+        root.insert("tensor_outputs", QJsonObject::fromVariantMap(tensorOutputs));
+    }
+
     return root;
 }
 
@@ -106,6 +125,24 @@ bool writeSnapshots(const QString& outputDir, const DetectionExportService::Dete
     return true;
 }
 
+bool writeTensorSummaryIfPresent(
+    const QString& outputDir,
+    const DetectionExportService::DetectionExportContext& context,
+    const QString& fileName,
+    QString* errorMessage)
+{
+    if (context.tensorOutputs.isEmpty() && !context.frameArtifacts.contains("custom_tensor_outputs")) {
+        return true;
+    }
+
+    return DetectionExportService::exportTensorSummary(
+        context.tensorOutputs,
+        context.frameArtifacts,
+        outputDir,
+        fileName,
+        errorMessage);
+}
+
 }
 
 namespace DetectionExportService {
@@ -128,10 +165,14 @@ bool exportImageResult(
     const QString stem = resultStem(result.sourceId);
 
     cv::Mat overlay = image.clone();
-    DetectionRenderComposer::drawDetections(overlay, result);
+    if (!context.frameArtifacts.isEmpty()) {
+        DetectionRenderComposer::applyModelArtifactsOverlay(overlay, result, context.frameArtifacts);
+    } else {
+        DetectionRenderComposer::drawDetections(overlay, result);
+    }
 
     const QString overlayPath = QDir(outputDir).filePath(stem + "_overlay.png");
-    if (!cv::imwrite(overlayPath.toStdString(), overlay)) {
+    if (!cv::imwrite(OpenCvImageIO::toOpenCvFilePath(overlayPath), overlay)) {
         if (errorMessage) {
             *errorMessage = "Failed to write overlay image";
         }
@@ -146,7 +187,11 @@ bool exportImageResult(
         return false;
     }
 
-    jsonFile.write(QJsonDocument(toJson(result)).toJson(QJsonDocument::Indented));
+    jsonFile.write(QJsonDocument(toJson(result, context.frameArtifacts, context.tensorOutputs)).toJson(QJsonDocument::Indented));
+
+    if (!writeTensorSummaryIfPresent(outputDir, context, stem + "_tensor_summary.json", errorMessage)) {
+        return false;
+    }
 
     if (!writeSnapshots(outputDir, context, errorMessage)) {
         return false;
@@ -199,7 +244,7 @@ bool exportImageBatch(
     csvStream << "source_id,frame_id,timestamp_ms,class_id,label,score,x,y,w,h,processing_time_ms\n";
 
     for (const QString& inputImagePath : inputImagePaths) {
-        cv::Mat image = cv::imread(inputImagePath.toStdString(), cv::IMREAD_COLOR);
+        cv::Mat image = cv::imread(OpenCvImageIO::toOpenCvFilePath(inputImagePath), cv::IMREAD_COLOR);
         if (image.empty()) {
             if (errorMessage) {
                 *errorMessage = QString("Failed to load batch image: %1").arg(inputImagePath);
@@ -232,7 +277,10 @@ bool exportImageBatch(
         detectionResult.timestampMs = frame.timestampMs;
 
         QString exportErrorMessage;
-        if (!exportImageResult(frame.workingMat, detectionResult, outputDir, &exportErrorMessage, {})) {
+        DetectionExportContext perImageContext = context;
+        perImageContext.frameArtifacts = frame.artifacts;
+        perImageContext.tensorOutputs = frame.tensorOutputs;
+        if (!exportImageResult(frame.workingMat, detectionResult, outputDir, &exportErrorMessage, perImageContext)) {
             if (errorMessage) {
                 *errorMessage = exportErrorMessage;
             }
@@ -260,7 +308,8 @@ bool exportVideoResult(
     const QString& outputDir,
     const std::function<bool(FramePacket*, DetectionFrameResult*, QString*)>& processor,
     QString* errorMessage,
-    const DetectionExportContext& context)
+    const DetectionExportContext& context,
+    const VideoExportOptions& videoOptions)
 {
     if (!processor) {
         if (errorMessage) {
@@ -277,7 +326,7 @@ bool exportVideoResult(
         return false;
     }
 
-    cv::VideoCapture capture(inputVideoPath.toStdString());
+    cv::VideoCapture capture(OpenCvImageIO::toOpenCvFilePath(inputVideoPath));
     if (!capture.isOpened()) {
         if (errorMessage) {
             *errorMessage = QString("Failed to open video: %1").arg(inputVideoPath);
@@ -289,16 +338,29 @@ bool exportVideoResult(
     const int height = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_HEIGHT));
     const double sourceFps = capture.get(cv::CAP_PROP_FPS);
     const double fps = sourceFps > 0.0 ? sourceFps : 25.0;
+    const int totalFrames = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_COUNT));
+    const int startFrame = qMax(0, videoOptions.startFrame);
+    const int endFrame = videoOptions.endFrame >= 0
+        ? qMin(videoOptions.endFrame, qMax(0, totalFrames - 1))
+        : qMax(0, totalFrames - 1);
+
+    if (startFrame > 0) {
+        capture.set(cv::CAP_PROP_POS_FRAMES, startFrame);
+    }
+
     const QString stem = resultStem(inputVideoPath);
-    const QString outputVideoPath = QDir(outputDir).filePath(stem + "_overlay.avi");
+    const QString outputVideoPath = QDir(outputDir).filePath(
+        videoOptions.sideBySide ? stem + "_side_by_side.avi" : stem + "_overlay.avi");
+
+    const int outputWidth = videoOptions.sideBySide ? width * 2 : width;
 
     cv::VideoWriter writer;
     writer.open(
-        outputVideoPath.toStdString(),
+        OpenCvImageIO::toOpenCvFilePath(outputVideoPath),
         cv::CAP_OPENCV_MJPEG,
         cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
         fps,
-        cv::Size(width, height)
+        cv::Size(outputWidth, height)
     );
     if (!writer.isOpened()) {
         if (errorMessage) {
@@ -319,10 +381,10 @@ bool exportVideoResult(
     QTextStream csvStream(&csvFile);
     csvStream << "source_id,frame_id,timestamp_ms,class_id,label,score,x,y,w,h,processing_time_ms\n";
 
-    int frameIndex = 0;
+    int frameIndex = startFrame;
     qint64 totalProcessingTimeMs = 0;
 
-    while (true) {
+    while (frameIndex <= endFrame) {
         cv::Mat frameMat;
         if (!capture.read(frameMat) || frameMat.empty()) {
             break;
@@ -358,14 +420,30 @@ bool exportVideoResult(
         detectionResult.runtimeMeta.insert("processing_time_ms", processingTimeMs);
 
         cv::Mat overlay = frame.workingMat.empty() ? frame.originalMat.clone() : frame.workingMat.clone();
-        DetectionRenderComposer::drawDetections(overlay, detectionResult);
-        writer.write(overlay);
+        DetectionRenderComposer::applyModelArtifactsOverlay(overlay, detectionResult, frame.artifacts);
+
+        cv::Mat outputFrame;
+        if (videoOptions.sideBySide) {
+            outputFrame = cv::Mat(height, outputWidth, frameMat.type(), cv::Scalar::all(0));
+            frameMat.copyTo(outputFrame(cv::Rect(0, 0, width, height)));
+            cv::Mat rightRoi = outputFrame(cv::Rect(width, 0, width, height));
+            if (overlay.size() != cv::Size(width, height)) {
+                cv::Mat resizedOverlay;
+                cv::resize(overlay, resizedOverlay, cv::Size(width, height));
+                resizedOverlay.copyTo(rightRoi);
+            } else {
+                overlay.copyTo(rightRoi);
+            }
+        } else {
+            outputFrame = overlay;
+        }
+        writer.write(outputFrame);
 
         for (const DetectionBox& box : detectionResult.boxes) {
             csvStream << csvLine(detectionResult, box);
         }
 
-        frames.append(toJson(detectionResult));
+        frames.append(toJson(detectionResult, frame.artifacts, frame.tensorOutputs));
         ++frameIndex;
     }
 
@@ -397,6 +475,117 @@ bool exportVideoResult(
         errorMessage->clear();
     }
 
+    return true;
+}
+
+bool exportComparisonImage(
+    const cv::Mat& leftImage,
+    const cv::Mat& rightImage,
+    const QString& outputPath,
+    QString* errorMessage)
+{
+    if (leftImage.empty() && rightImage.empty()) {
+        if (errorMessage) {
+            *errorMessage = "Comparison export requires at least one image";
+        }
+        return false;
+    }
+
+    const cv::Mat left = leftImage.empty() ? rightImage : leftImage;
+    const cv::Mat right = rightImage.empty() ? leftImage : rightImage;
+    const int width = std::max(left.cols, right.cols);
+    const int height = std::max(left.rows, right.rows);
+
+    cv::Mat canvas(height, width * 2, left.type());
+    cv::Mat leftRoi = canvas(cv::Rect(0, 0, width, height));
+    cv::Mat rightRoi = canvas(cv::Rect(width, 0, width, height));
+    leftRoi.setTo(cv::Scalar::all(0));
+    rightRoi.setTo(cv::Scalar::all(0));
+    left.copyTo(leftRoi(cv::Rect(0, 0, left.cols, left.rows)));
+    right.copyTo(rightRoi(cv::Rect(0, 0, right.cols, right.rows)));
+
+    if (!cv::imwrite(OpenCvImageIO::toOpenCvFilePath(outputPath), canvas)) {
+        if (errorMessage) {
+            *errorMessage = QString("Failed to write comparison image: %1").arg(outputPath);
+        }
+        return false;
+    }
+
+    return true;
+}
+
+bool exportEnvironmentSummary(const QString& outputDir, QString* errorMessage)
+{
+    QDir().mkpath(outputDir);
+    QFile file(QDir(outputDir).filePath("environment_summary.json"));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        if (errorMessage) {
+            *errorMessage = "Failed to write environment summary";
+        }
+        return false;
+    }
+
+    QJsonObject root;
+    root.insert("opencv_version", QString::fromStdString(CV_VERSION));
+    root.insert("qt_version", QString::fromUtf8(QT_VERSION_STR));
+    root.insert("runtime_backend", DiagnosticsLog::instance().runtimeBackendSummary());
+    root.insert("diagnostics", DiagnosticsLog::instance().summaryText());
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    return true;
+}
+
+bool exportValidationReport(const QString& outputDir, const QString& summaryText, QString* errorMessage)
+{
+    QDir().mkpath(outputDir);
+    QFile file(QDir(outputDir).filePath("validation_report.txt"));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        if (errorMessage) {
+            *errorMessage = "Failed to write validation report";
+        }
+        return false;
+    }
+
+    QTextStream stream(&file);
+    stream << "CVVerify Validation Report\n";
+    stream << "==========================\n\n";
+    stream << summaryText << "\n\n";
+    stream << DiagnosticsLog::instance().detailedText() << "\n";
+    return true;
+}
+
+bool exportTensorSummary(
+    const QVariantMap& tensorOutputs,
+    const QVariantMap& frameArtifacts,
+    const QString& outputDir,
+    const QString& fileName,
+    QString* errorMessage)
+{
+    if (tensorOutputs.isEmpty() && !frameArtifacts.contains("custom_tensor_outputs")) {
+        return true;
+    }
+
+    QDir().mkpath(outputDir);
+    QFile file(QDir(outputDir).filePath(fileName));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        if (errorMessage) {
+            *errorMessage = QString("Failed to write tensor summary: %1").arg(fileName);
+        }
+        return false;
+    }
+
+    QJsonObject root;
+    if (!tensorOutputs.isEmpty()) {
+        root.insert("tensor_outputs", QJsonObject::fromVariantMap(tensorOutputs));
+    }
+    if (frameArtifacts.contains("custom_tensor_outputs")) {
+        root.insert("custom_tensor_outputs", QJsonArray::fromVariantList(
+            frameArtifacts.value("custom_tensor_outputs").toList()));
+    }
+
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    if (errorMessage) {
+        errorMessage->clear();
+    }
     return true;
 }
 

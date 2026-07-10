@@ -5,6 +5,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include "infra/opencv/OpenCvImageIO.h"
+
 namespace {
 cv::Mat ensureGrayForMatching(const cv::Mat& source)
 {
@@ -124,7 +126,7 @@ StepResult SurfMatchPlaceholderOperator::execute(FramePacket& frame, const RunCo
         return {false, "Missing secondary image path for feature matching"};
     }
 
-    const cv::Mat secondaryImage = cv::imread(secondaryPath.toStdString(), cv::IMREAD_COLOR);
+    const cv::Mat secondaryImage = cv::imread(OpenCvImageIO::toOpenCvFilePath(secondaryPath), cv::IMREAD_COLOR);
     if (secondaryImage.empty()) {
         return {false, "Failed to load secondary image for feature matching"};
     }

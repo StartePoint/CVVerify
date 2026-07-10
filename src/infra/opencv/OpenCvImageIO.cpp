@@ -1,11 +1,18 @@
 #include "infra/opencv/OpenCvImageIO.h"
 
+#include <QDir>
 #include <QFile>
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
 
 namespace OpenCvImageIO {
+
+std::string toOpenCvFilePath(const QString& filePath)
+{
+    const QByteArray encodedPath = QFile::encodeName(QDir::toNativeSeparators(filePath));
+    return std::string(encodedPath.constData(), static_cast<std::size_t>(encodedPath.size()));
+}
 
 FrameReadResult loadImageFile(const QString& filePath)
 {
@@ -42,7 +49,7 @@ MediaInfo probeVideoFile(const QString& filePath)
     info.kind = MediaSourceKind::VideoFile;
     info.sourceId = filePath;
 
-    cv::VideoCapture capture(filePath.toStdString());
+    cv::VideoCapture capture(toOpenCvFilePath(filePath));
     if (!capture.isOpened()) {
         return info;
     }
@@ -57,7 +64,7 @@ MediaInfo probeVideoFile(const QString& filePath)
 FrameReadResult readVideoFrame(const QString& filePath, int frameIndex)
 {
     FrameReadResult result;
-    cv::VideoCapture capture(filePath.toStdString());
+    cv::VideoCapture capture(toOpenCvFilePath(filePath));
     if (!capture.isOpened()) {
         result.errorMessage = QString("Failed to open video: %1").arg(filePath);
         return result;

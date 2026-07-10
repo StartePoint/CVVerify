@@ -1,0 +1,19 @@
+{
+  "pipelineId": "samples.histogram_sidecar",
+  "displayName": "Histogram Sidecar Chart",
+  "steps": [
+    {
+      "stepId": "builtin.histogram_bar",
+      "displayName": "Histogram Bar",
+      "parameters": {
+        "channels": "all_rgb",
+        "bins": 256,
+        "rangeMin": 0.0,
+        "rangeMax": 255.0,
+        "normalize": true,
+        "barStyle": "filled",
+        "chartMode": "sidecar"
+      }
+    }
+  ]
+}

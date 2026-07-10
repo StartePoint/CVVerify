@@ -8,6 +8,7 @@
 
 class QFormLayout;
 class QLabel;
+class QPushButton;
 class QScrollArea;
 class QWidget;
 
@@ -20,11 +21,15 @@ class ParameterPanel : public QWidget
 public:
     explicit ParameterPanel(QWidget* parent = nullptr);
     void setLanguage(const QString& languageCode);
+    void setCompactMode(bool compact);
     void setStep(const std::shared_ptr<IPipelineStep>& step);
     void clearStep();
 
 signals:
     void parameterValuesChanged(const QVariantMap& values);
+    void resetToDefaultsRequested();
+    void savePresetRequested();
+    void loadPresetRequested();
 
 private:
     struct ParameterEditorBinding
@@ -44,6 +49,11 @@ private:
     QScrollArea* m_scrollArea = nullptr;
     QLabel* m_titleLabel = nullptr;
     QLabel* m_emptyStateLabel = nullptr;
+    QPushButton* m_resetButton = nullptr;
+    QPushButton* m_savePresetButton = nullptr;
+    QPushButton* m_loadPresetButton = nullptr;
     QString m_languageCode = "en";
+    bool m_compactMode = false;
+    bool m_rebuildingEditors = false;
     QList<ParameterEditorBinding> m_editorBindings;
 };

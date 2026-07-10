@@ -1,0 +1,131 @@
+{
+  "id": "builtin.morphology",
+  "displayName": "Morphology",
+  "category": "Morphology",
+  "parameters": [
+    {
+      "key": "operation",
+      "displayName": "Operation",
+      "group": "操作设置",
+      "type": "choice",
+      "default": "dilate",
+      "choices": [
+        {
+          "value": "erode",
+          "label": "Erode"
+        },
+        {
+          "value": "dilate",
+          "label": "Dilate"
+        },
+        {
+          "value": "open",
+          "label": "Open"
+        },
+        {
+          "value": "close",
+          "label": "Close"
+        },
+        {
+          "value": "gradient",
+          "label": "Gradient"
+        },
+        {
+          "value": "tophat",
+          "label": "Top Hat"
+        },
+        {
+          "value": "blackhat",
+          "label": "Black Hat"
+        }
+      ]
+    },
+    {
+      "key": "kernelShape",
+      "displayName": "Kernel Shape",
+      "group": "核设置",
+      "type": "choice",
+      "default": "rect",
+      "choices": [
+        {
+          "value": "rect",
+          "label": "Rectangle"
+        },
+        {
+          "value": "ellipse",
+          "label": "Ellipse"
+        },
+        {
+          "value": "cross",
+          "label": "Cross"
+        }
+      ]
+    },
+    {
+      "key": "kernelWidth",
+      "displayName": "Kernel Width",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    },
+    {
+      "key": "kernelHeight",
+      "displayName": "Kernel Height",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    },
+    {
+      "key": "iterations",
+      "displayName": "Iterations",
+      "group": "操作设置",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 20,
+      "step": 1
+    },
+    {
+      "key": "borderType",
+      "displayName": "Border Type",
+      "group": "边界设置",
+      "type": "choice",
+      "default": "reflect101",
+      "choices": [
+        {
+          "value": "constant",
+          "label": "Constant"
+        },
+        {
+          "value": "replicate",
+          "label": "Replicate"
+        },
+        {
+          "value": "reflect",
+          "label": "Reflect"
+        },
+        {
+          "value": "reflect101",
+          "label": "Reflect 101"
+        }
+      ]
+    },
+    {
+      "key": "borderValue",
+      "displayName": "Border Value",
+      "group": "边界设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "visibleWhen": "borderType=constant"
+    }
+  ]
+}

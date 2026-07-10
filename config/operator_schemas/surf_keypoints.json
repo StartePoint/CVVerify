@@ -1,0 +1,87 @@
+{
+  "id": "builtin.surf_keypoints",
+  "displayName": "SURF Keypoints",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "backend",
+      "displayName": "Backend",
+      "group": "后端设置",
+      "type": "choice",
+      "default": "sift",
+      "tooltip": "Current SDK falls back to sift/orb/akaze",
+      "choices": [
+        {
+          "value": "surf",
+          "label": "SURF"
+        },
+        {
+          "value": "sift",
+          "label": "SIFT"
+        },
+        {
+          "value": "orb",
+          "label": "ORB"
+        },
+        {
+          "value": "akaze",
+          "label": "AKAZE"
+        }
+      ]
+    },
+    {
+      "key": "hessianThreshold",
+      "displayName": "Hessian Threshold",
+      "group": "SURF 规范参数",
+      "type": "double",
+      "default": 400.0,
+      "min": 1.0,
+      "max": 5000.0,
+      "step": 1.0
+    },
+    {
+      "key": "nOctaves",
+      "displayName": "Octaves",
+      "group": "SURF 规范参数",
+      "type": "integer",
+      "default": 4,
+      "min": 1,
+      "max": 8,
+      "step": 1
+    },
+    {
+      "key": "nOctaveLayers",
+      "displayName": "Octave Layers",
+      "group": "SURF 规范参数",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "step": 1
+    },
+    {
+      "key": "extended",
+      "displayName": "Extended Descriptor",
+      "group": "SURF 规范参数",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "upright",
+      "displayName": "Upright",
+      "group": "SURF 规范参数",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "maxDisplayCount",
+      "displayName": "Max Display Count",
+      "group": "绘制设置",
+      "type": "integer",
+      "default": 300,
+      "min": 1,
+      "max": 10000,
+      "step": 1
+    }
+  ]
+}

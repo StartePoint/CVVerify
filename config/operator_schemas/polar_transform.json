@@ -1,0 +1,157 @@
+{
+  "id": "builtin.polar_transform",
+  "displayName": "Polar Transform",
+  "category": "Transform",
+  "parameters": [
+    {
+      "key": "direction",
+      "displayName": "Direction",
+      "group": "模式设置",
+      "type": "choice",
+      "default": "cart_to_polar",
+      "choices": [
+        {
+          "value": "cart_to_polar",
+          "label": "Cartesian To Polar"
+        },
+        {
+          "value": "polar_to_cart",
+          "label": "Polar To Cartesian"
+        }
+      ]
+    },
+    {
+      "key": "polarMode",
+      "displayName": "Polar Mode",
+      "group": "模式设置",
+      "type": "choice",
+      "default": "linear",
+      "choices": [
+        {
+          "value": "linear",
+          "label": "Linear"
+        },
+        {
+          "value": "log",
+          "label": "Log"
+        }
+      ]
+    },
+    {
+      "key": "centerMode",
+      "displayName": "Center Mode",
+      "group": "中心设置",
+      "type": "choice",
+      "default": "image_center",
+      "choices": [
+        {
+          "value": "image_center",
+          "label": "Image Center"
+        },
+        {
+          "value": "manual",
+          "label": "Manual"
+        }
+      ]
+    },
+    {
+      "key": "centerX",
+      "displayName": "Center X",
+      "group": "中心设置",
+      "type": "double",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 10000.0,
+      "step": 1.0,
+      "visibleWhen": "centerMode=manual"
+    },
+    {
+      "key": "centerY",
+      "displayName": "Center Y",
+      "group": "中心设置",
+      "type": "double",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 10000.0,
+      "step": 1.0,
+      "visibleWhen": "centerMode=manual"
+    },
+    {
+      "key": "radiusMode",
+      "displayName": "Radius Mode",
+      "group": "中心设置",
+      "type": "choice",
+      "default": "auto",
+      "choices": [
+        {
+          "value": "auto",
+          "label": "Auto"
+        },
+        {
+          "value": "manual",
+          "label": "Manual"
+        }
+      ]
+    },
+    {
+      "key": "maxRadius",
+      "displayName": "Max Radius",
+      "group": "中心设置",
+      "type": "double",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 10000.0,
+      "step": 1.0,
+      "visibleWhen": "radiusMode=manual"
+    },
+    {
+      "key": "outputWidth",
+      "displayName": "Output Width",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "outputHeight",
+      "displayName": "Output Height",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "interpolation",
+      "displayName": "Interpolation",
+      "group": "输出设置",
+      "type": "choice",
+      "default": "linear",
+      "choices": [
+        {
+          "value": "nearest",
+          "label": "Nearest"
+        },
+        {
+          "value": "linear",
+          "label": "Linear"
+        },
+        {
+          "value": "cubic",
+          "label": "Cubic"
+        },
+        {
+          "value": "area",
+          "label": "Area"
+        },
+        {
+          "value": "lanczos4",
+          "label": "Lanczos4"
+        }
+      ]
+    }
+  ]
+}

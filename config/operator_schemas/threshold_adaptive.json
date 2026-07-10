@@ -1,0 +1,72 @@
+{
+  "id": "builtin.threshold_adaptive",
+  "displayName": "Adaptive Threshold",
+  "category": "Thresholding",
+  "parameters": [
+    {
+      "key": "maxValue",
+      "displayName": "Max Value",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 255.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "adaptiveMethod",
+      "displayName": "Adaptive Method",
+      "group": "阈值设置",
+      "type": "choice",
+      "default": "gaussian",
+      "choices": [
+        {
+          "value": "mean",
+          "label": "Mean"
+        },
+        {
+          "value": "gaussian",
+          "label": "Gaussian"
+        }
+      ]
+    },
+    {
+      "key": "thresholdType",
+      "displayName": "Threshold Type",
+      "group": "阈值设置",
+      "type": "choice",
+      "default": "binary",
+      "choices": [
+        {
+          "value": "binary",
+          "label": "Binary"
+        },
+        {
+          "value": "binary_inv",
+          "label": "Binary Inverted"
+        }
+      ]
+    },
+    {
+      "key": "blockSize",
+      "displayName": "Block Size",
+      "group": "阈值设置",
+      "type": "integer",
+      "default": 11,
+      "min": 3,
+      "max": 99,
+      "step": 2,
+      "tooltip": "Must stay odd"
+    },
+    {
+      "key": "cValue",
+      "displayName": "C Value",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 2.0,
+      "min": -50.0,
+      "max": 50.0,
+      "step": 0.5
+    }
+  ]
+}

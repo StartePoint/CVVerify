@@ -2,9 +2,12 @@
 
 ## Supported Versions
 
-CVVerify is currently pre-release. Security fixes are handled on the active development line until tagged releases and long-term support windows are defined.
+| Version | Supported |
+| --- | --- |
+| `main` (pre-release) | Yes |
+| `0.1.0` pre-release | Yes |
 
-At this stage, treat `main` as the only supported code line unless a future release document states otherwise.
+CVVerify is currently pre-release. Security fixes are handled on the active development line until tagged releases and long-term support windows are defined.
 
 ## Reporting a Vulnerability
 

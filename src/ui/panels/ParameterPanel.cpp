@@ -9,6 +9,7 @@
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QFrame>
+#include <QPushButton>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -51,6 +52,8 @@ QString localizedParameterName(const QString& key, const QString& displayName, c
     if (key == "enabled") return QStringLiteral("\u542f\u7528");
     if (key == "mode") return QStringLiteral("\u6a21\u5f0f");
     if (key == "secondaryImagePath") return QStringLiteral("\u7b2c\u4e8c\u5f20\u56fe\u8def\u5f84");
+    if (key == "templateImagePath") return QStringLiteral("\u6a21\u677f\u56fe\u7247\u8def\u5f84");
+    if (key == "chartMode") return QStringLiteral("\u56fe\u8868\u6a21\u5f0f");
     if (key == "direction") return QStringLiteral("\u65b9\u5411");
     if (key == "polarMode") return QStringLiteral("\u6781\u5750\u6807\u6a21\u5f0f");
     if (key == "centerMode") return QStringLiteral("\u4e2d\u5fc3\u6a21\u5f0f");
@@ -104,7 +107,7 @@ QString localizedChoiceLabel(const QString& parameterKey, const QString& choiceV
 bool usesImageFilePicker(const StepParameter& parameter)
 {
     return parameter.type == StepParameterType::String
-        && parameter.key == "secondaryImagePath";
+        && (parameter.key == "secondaryImagePath" || parameter.key == "templateImagePath");
 }
 
 QString localizedBrowseText(const QString& languageCode)
@@ -138,6 +141,25 @@ ParameterPanel::ParameterPanel(QWidget* parent)
     m_titleLabel->setFont(titleFont);
     rootLayout->addWidget(m_titleLabel);
 
+    auto* presetRow = new QHBoxLayout();
+    m_resetButton = new QPushButton("Reset", this);
+    m_savePresetButton = new QPushButton("Save Preset", this);
+    m_loadPresetButton = new QPushButton("Load Preset", this);
+    m_resetButton->setObjectName("resetParametersButton");
+    m_savePresetButton->setObjectName("savePresetButton");
+    m_loadPresetButton->setObjectName("loadPresetButton");
+    m_resetButton->setMinimumHeight(28);
+    m_savePresetButton->setMinimumHeight(28);
+    m_loadPresetButton->setMinimumHeight(28);
+    presetRow->addWidget(m_resetButton);
+    presetRow->addWidget(m_savePresetButton);
+    presetRow->addWidget(m_loadPresetButton);
+    rootLayout->addLayout(presetRow);
+
+    connect(m_resetButton, &QPushButton::clicked, this, &ParameterPanel::resetToDefaultsRequested);
+    connect(m_savePresetButton, &QPushButton::clicked, this, &ParameterPanel::savePresetRequested);
+    connect(m_loadPresetButton, &QPushButton::clicked, this, &ParameterPanel::loadPresetRequested);
+
     auto* formHost = new QWidget(this);
     formHost->setObjectName("parameterFormHost");
     formHost->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -166,11 +188,32 @@ ParameterPanel::ParameterPanel(QWidget* parent)
     setLanguage("en");
 }
 
+void ParameterPanel::setCompactMode(bool compact)
+{
+    m_compactMode = compact;
+    if (m_titleLabel) {
+        m_titleLabel->setVisible(!compact);
+    }
+    if (auto* rootLayout = qobject_cast<QVBoxLayout*>(layout())) {
+        rootLayout->setContentsMargins(compact ? 4 : 10, compact ? 2 : 6, compact ? 4 : 10, compact ? 2 : 6);
+        rootLayout->setSpacing(compact ? 4 : 4);
+    }
+}
+
 void ParameterPanel::setLanguage(const QString& languageCode)
 {
     m_languageCode = languageCode;
     const bool chinese = isChineseLanguage(languageCode);
     m_titleLabel->setText(chinese ? QStringLiteral("\u53c2\u6570") : "Parameters");
+    if (m_resetButton) {
+        m_resetButton->setText(chinese ? QStringLiteral("\u91cd\u7f6e\u9ed8\u8ba4") : "Reset");
+    }
+    if (m_savePresetButton) {
+        m_savePresetButton->setText(chinese ? QStringLiteral("\u4fdd\u5b58\u9884\u8bbe") : "Save Preset");
+    }
+    if (m_loadPresetButton) {
+        m_loadPresetButton->setText(chinese ? QStringLiteral("\u52a0\u8f7d\u9884\u8bbe") : "Load Preset");
+    }
     if (!m_step) {
         if (m_scrollArea) {
             m_scrollArea->setVisible(false);
@@ -197,6 +240,7 @@ void ParameterPanel::clearStep()
 
 void ParameterPanel::rebuildEditors()
 {
+    m_rebuildingEditors = true;
     while (m_formLayout->rowCount() > 0) {
         m_formLayout->removeRow(0);
     }
@@ -208,6 +252,7 @@ void ParameterPanel::rebuildEditors()
         }
         m_emptyStateLabel->setVisible(true);
         setLanguage(m_languageCode);
+        m_rebuildingEditors = false;
         return;
     }
 
@@ -252,7 +297,7 @@ void ParameterPanel::rebuildEditors()
             }
 
             connect(spinBox, qOverload<int>(&QSpinBox::valueChanged), this, [this, parameter](int value) {
-                if (!m_step) {
+                if (m_rebuildingEditors || !m_step) {
                     return;
                 }
                 QVariantMap values = m_step->parameterValues();
@@ -277,7 +322,7 @@ void ParameterPanel::rebuildEditors()
             }
 
             connect(doubleSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this, parameter](double value) {
-                if (!m_step) {
+                if (m_rebuildingEditors || !m_step) {
                     return;
                 }
                 QVariantMap values = m_step->parameterValues();
@@ -296,7 +341,7 @@ void ParameterPanel::rebuildEditors()
             }
 
             connect(checkBox, &QCheckBox::toggled, this, [this, parameter](bool checked) {
-                if (!m_step) {
+                if (m_rebuildingEditors || !m_step) {
                     return;
                 }
                 QVariantMap values = m_step->parameterValues();
@@ -321,7 +366,7 @@ void ParameterPanel::rebuildEditors()
             }
 
             connect(comboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, parameter, comboBox](int index) {
-                if (!m_step || index < 0) {
+                if (m_rebuildingEditors || !m_step || index < 0) {
                     return;
                 }
                 QVariantMap values = m_step->parameterValues();
@@ -333,6 +378,7 @@ void ParameterPanel::rebuildEditors()
             editor = comboBox;
         } else if (parameter.type == StepParameterType::String) {
             auto* lineEdit = new QLineEdit(this);
+            lineEdit->setObjectName(QStringLiteral("parameterLineEdit_%1").arg(parameter.key));
             lineEdit->setMinimumHeight(24);
             lineEdit->setText(currentValues.value(parameter.key, parameter.defaultValue).toString());
             if (!parameter.tooltip.isEmpty()) {
@@ -340,7 +386,7 @@ void ParameterPanel::rebuildEditors()
             }
 
             connect(lineEdit, &QLineEdit::textChanged, this, [this, parameter](const QString& text) {
-                if (!m_step) {
+                if (m_rebuildingEditors || !m_step) {
                     return;
                 }
                 QVariantMap values = m_step->parameterValues();
@@ -412,6 +458,7 @@ void ParameterPanel::rebuildEditors()
     }
 
     updateConditionalVisibility(currentValues);
+    m_rebuildingEditors = false;
 }
 
 void ParameterPanel::updateConditionalVisibility(const QVariantMap& values)

@@ -1,0 +1,34 @@
+{
+  "id": "builtin.box_filter",
+  "displayName": "Box Filter",
+  "category": "Filtering",
+  "parameters": [
+    {
+      "key": "kernelWidth",
+      "displayName": "Kernel Width",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    },
+    {
+      "key": "kernelHeight",
+      "displayName": "Kernel Height",
+      "group": "核设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 99,
+      "step": 1
+    },
+    {
+      "key": "normalize",
+      "displayName": "Normalize",
+      "group": "输出设置",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}

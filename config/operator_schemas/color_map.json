@@ -1,0 +1,110 @@
+{
+  "id": "builtin.color_map",
+  "displayName": "Color Map",
+  "category": "Filter Effects",
+  "parameters": [
+    {
+      "key": "colorMap",
+      "displayName": "Color Map",
+      "group": "映射设置",
+      "type": "choice",
+      "default": "turbo",
+      "choices": [
+        {
+          "value": "autumn",
+          "label": "Autumn"
+        },
+        {
+          "value": "bone",
+          "label": "Bone"
+        },
+        {
+          "value": "jet",
+          "label": "Jet"
+        },
+        {
+          "value": "winter",
+          "label": "Winter"
+        },
+        {
+          "value": "rainbow",
+          "label": "Rainbow"
+        },
+        {
+          "value": "ocean",
+          "label": "Ocean"
+        },
+        {
+          "value": "summer",
+          "label": "Summer"
+        },
+        {
+          "value": "spring",
+          "label": "Spring"
+        },
+        {
+          "value": "cool",
+          "label": "Cool"
+        },
+        {
+          "value": "hsv",
+          "label": "HSV"
+        },
+        {
+          "value": "pink",
+          "label": "Pink"
+        },
+        {
+          "value": "hot",
+          "label": "Hot"
+        },
+        {
+          "value": "parula",
+          "label": "Parula"
+        },
+        {
+          "value": "magma",
+          "label": "Magma"
+        },
+        {
+          "value": "inferno",
+          "label": "Inferno"
+        },
+        {
+          "value": "plasma",
+          "label": "Plasma"
+        },
+        {
+          "value": "viridis",
+          "label": "Viridis"
+        },
+        {
+          "value": "cividis",
+          "label": "Cividis"
+        },
+        {
+          "value": "turbo",
+          "label": "Turbo"
+        },
+        {
+          "value": "deepgreen",
+          "label": "Deep Green"
+        }
+      ]
+    },
+    {
+      "key": "convertToGray",
+      "displayName": "Convert To Gray",
+      "group": "映射设置",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "invertGray",
+      "displayName": "Invert Gray",
+      "group": "映射设置",
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

@@ -23,8 +23,9 @@ Use this checklist before publishing the repository for the first time or before
 ## Build and Test Documentation
 
 - Re-check `docs/build-windows-mingw.md` after every toolchain or dependency update.
+- Keep cross-platform notes in `docs/build-linux.md` and `docs/build-macos.md` aligned with packaging scripts.
 - Confirm the documented CMake and qmake commands still match the build files.
-- Update screenshots or UI review documents if the visible workflow changed significantly.
+- Update `docs/quick-start-validation.md` when visible validation workflows change.
 
 ## GitHub Workflow Expectations
 
@@ -36,3 +37,18 @@ Use this checklist before publishing the repository for the first time or before
 
 - Update `CHANGELOG.md` with feature, behavior, and documentation changes that matter to contributors.
 - Tag any known limitations or placeholder workflows so public users do not mistake them for finished functionality.
+
+## v0.1.0 Pre-Release Status (2026-07)
+
+The following items are in place for the current pre-release slice:
+
+- [x] README, LICENSE, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, SUPPORT
+- [x] Quick-start, build, repository-structure, and packaging documentation
+- [x] Bundled `config/` and `samples/` with CMake post-build copy
+- [x] Operator schemas (48), app defaults, model templates, and sample pipelines/projects
+- [x] GitHub Actions metadata checks and MinGW build/test job
+- [x] Localized UI (English / Simplified Chinese) across major panels and menus
+- [x] Windows packaging script; Linux/macOS packaging helpers
+- [x] Manual validation checklist at `docs/manual-validation-v0.1.0.md`
+- [ ] Final manual validation pass on a clean Windows machine before public tag
+- [ ] Optional: hosted Qt provisioning stability notes if CI runners change

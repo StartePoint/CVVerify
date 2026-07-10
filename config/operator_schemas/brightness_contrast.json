@@ -1,0 +1,27 @@
+{
+  "id": "builtin.brightness_contrast",
+  "displayName": "Brightness Contrast",
+  "category": "Enhancement",
+  "parameters": [
+    {
+      "key": "alpha",
+      "displayName": "Contrast Alpha",
+      "group": "增强设置",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.05
+    },
+    {
+      "key": "beta",
+      "displayName": "Brightness Beta",
+      "group": "增强设置",
+      "type": "double",
+      "default": 0.0,
+      "min": -255.0,
+      "max": 255.0,
+      "step": 1.0
+    }
+  ]
+}

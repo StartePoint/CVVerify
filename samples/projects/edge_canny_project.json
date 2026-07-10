@@ -1,0 +1,35 @@
+{
+  "projectId": "samples.edge_canny",
+  "displayName": "Edge Canny Demo",
+  "version": "1.0",
+  "mediaSourceKind": "image",
+  "mediaSourcePath": "samples/images/gradient_ramp.png",
+  "pipeline": {
+    "pipelineId": "samples.edge_canny",
+    "displayName": "Grayscale + Canny Edge",
+    "steps": [
+      {
+        "stepId": "builtin.grayscale",
+        "displayName": "Grayscale",
+        "parameters": {}
+      },
+      {
+        "stepId": "builtin.canny",
+        "displayName": "Canny",
+        "parameters": {
+          "threshold1": 40.0,
+          "threshold2": 120.0,
+          "apertureSize": 3,
+          "useL2Gradient": false
+        }
+      }
+    ]
+  },
+  "appSettings": {
+    "languageCode": "en",
+    "maxPreviewFps": 30,
+    "previewScale": 1.0,
+    "allowFrameSkip": true,
+    "previewFrameStep": 1
+  }
+}

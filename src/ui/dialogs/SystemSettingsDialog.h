@@ -21,7 +21,10 @@ public:
     void setSettings(const AppSettings& settings);
     AppSettings settings() const;
     void setLanguage(const QString& languageCode);
+    bool clearRecentFilesRequested() const;
 
 private:
     Ui::SystemSettingsDialog* ui = nullptr;
+    QString m_languageCode = "en";
+    bool m_clearRecentFilesRequested = false;
 };

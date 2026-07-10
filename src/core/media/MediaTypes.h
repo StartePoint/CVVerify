@@ -7,7 +7,8 @@
 enum class MediaSourceKind
 {
     ImageFile,
-    VideoFile
+    VideoFile,
+    ImageFolder
 };
 
 struct MediaInfo

@@ -1,12 +1,24 @@
 #include "ui/mainwindow/MainWindow.h"
 
+#include <QColor>
 #include <QDir>
 #include <QDesktopServices>
 #include <QDialog>
+#include <QDialogButtonBox>
+#include <QTextBrowser>
+#include <QDockWidget>
+#include <QInputDialog>
+#include <QKeySequence>
+#include <QShortcut>
+#include <QTabWidget>
+#include <QTabBar>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QAbstractItemView>
+#include <QElapsedTimer>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -18,36 +30,63 @@
 #include <QListView>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QPushButton>
-#include <QSignalBlocker>
+#include <QShowEvent>
 #include <QSizePolicy>
 #include <QStatusBar>
+#include <QThread>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 #include <functional>
 
+#include "app/ApplicationContext.h"
 #include "app/AppSettings.h"
+#include "app/AppVersion.h"
 #include "core/detection/DetectionExportService.h"
+#include "core/detection/OpenCvDnnRunner.h"
 #include "core/detection/DetectionRenderComposer.h"
 #include "core/detection/LabelProvider.h"
 #include "core/detection/ModelPackageLoader.h"
-#include "core/detection/YoloDetectionStep.h"
+#include "core/detection/ModelImportService.h"
+#include "core/detection/ModelTemplateLoader.h"
+#include "core/detection/OnnxModelStepFactory.h"
 #include "core/detection/YoloOnnxImportService.h"
+#include "core/diagnostics/DiagnosticsLog.h"
+#include "core/diagnostics/DnnRuntimeInfo.h"
+#include "core/pipeline/BatchPipelineRunner.h"
+#include "core/project/ParameterPresetStore.h"
 #include "core/media/ImageFileSource.h"
+#include "core/media/ImageFolderSource.h"
 #include "core/media/VideoFileSource.h"
-#include "core/operators/BuiltinOperatorBootstrap.h"
-#include "core/pipeline/PipelineEngine.h"
+#include "core/models/ModelRegistry.h"
+#include "core/project/ProjectDefinition.h"
+#include "core/project/ProjectService.h"
+#include "core/tasks/TaskTypes.h"
 #include "core/pipeline/PipelineJsonSerializer.h"
+#include "infra/opencv/OpenCvImageIO.h"
 #include "infra/opencv/OpenCvQtImageConverter.h"
+#include "infra/platform/PlatformPaths.h"
+#include "ui/dialogs/ModelConfigEditorDialog.h"
 #include "ui/dialogs/SystemSettingsDialog.h"
 #include "ui/dialogs/OperatorParameterDialog.h"
 #include "ui/dialogs/YoloModelImportDialog.h"
 #include "ui/panels/ExportResultsPanel.h"
+#include "ui/panels/DiagnosticsPanel.h"
+#include "ui/panels/ModelListPanel.h"
+#include "ui/panels/StatisticsPanel.h"
+#include "ui/widgets/PreviewCanvasHost.h"
+#include "ui/widgets/TimelineWidget.h"
 #include "ui/panels/MediaPanel.h"
 #include "ui/panels/ParameterPanel.h"
 #include "ui/panels/PipelinePanel.h"
+#include "ui/panels/TaskConsolePanel.h"
+#include "ui/panels/TaskHistoryPanel.h"
 #include "ui/widgets/CanvasView.h"
 #include "ui_MainWindow.h"
 
@@ -67,6 +106,127 @@ bool isChineseLanguage(const QString& languageCode)
 QString localizedText(const QString& languageCode, const QString& englishText, const QString& chineseText)
 {
     return isChineseLanguage(languageCode) ? chineseText : englishText;
+}
+
+QString quickStartGuideText(const QString& languageCode)
+{
+    if (isChineseLanguage(languageCode)) {
+        return QStringLiteral(
+            "CVVerify 快速入门\n"
+            "================\n\n"
+            "1. 打开媒体\n"
+            "   使用「媒体 → 打开图片 / 打开视频 / 打开图片文件夹」，"
+            "或把文件拖拽到主窗口。\n\n"
+            "2. 搭建处理流程\n"
+            "   在「流程 → 添加算子」中选择算子；"
+            "底部参数区可调整当前步骤参数；"
+            "按 F5 或点击预览相关按钮重新运行。\n\n"
+            "3. 查看结果\n"
+            "   中间区域左侧为原图，右侧为处理结果。"
+            "「预览」菜单可切换双画面、拆分对比、四宫格等布局。\n\n"
+            "4. 模型与检测\n"
+            "   通过「媒体 → 导入 ONNX 模型」加载模型；"
+            "可在「流程 → 添加当前模型步骤」加入检测步骤。"
+            "需要模型列表时，打开「视图 → 模型与任务面板」。\n\n"
+            "5. 播放与导出\n"
+            "   视频可使用「播放」菜单或空格键控制播放；"
+            "「导出」菜单支持导出检测结果、流程快照等。\n\n"
+            "6. 常用快捷键\n"
+            "   Ctrl+O  打开图片\n"
+            "   F5      重新预览\n"
+            "   空格    播放 / 暂停\n"
+            "   Ctrl+,  系统设置\n\n"
+            "提示：左右侧边面板默认隐藏，可在「视图」菜单中按需显示。");
+    }
+
+    return QStringLiteral(
+        "CVVerify Quick Start\n"
+        "====================\n\n"
+        "1. Open media\n"
+        "   Use Media -> Open Image / Open Video / Open Image Folder,\n"
+        "   or drag files onto the main window.\n\n"
+        "2. Build a pipeline\n"
+        "   Choose operators from Pipeline -> Add Operator.\n"
+        "   Adjust step parameters in the bottom panel.\n"
+        "   Press F5 to rerun preview.\n\n"
+        "3. Inspect results\n"
+        "   The center area shows source on the left and result on the right.\n"
+        "   Use Preview menu layouts such as dual view, wipe, or four grid.\n\n"
+        "4. Models and detection\n"
+        "   Import ONNX models from Media -> Import ONNX Model.\n"
+        "   Add the active model step from Pipeline -> Add Active Model Step.\n"
+        "   Open View -> Model && Tasks Panel when you need the model list.\n\n"
+        "5. Playback and export\n"
+        "   Control video playback from the Playback menu or Space key.\n"
+        "   Export detections, snapshots, and batch results from the Export menu.\n\n"
+        "6. Useful shortcuts\n"
+        "   Ctrl+O  Open image\n"
+        "   F5      Rerun preview\n"
+        "   Space   Play / pause\n"
+        "   Ctrl+,  System settings\n\n"
+        "Tip: side panels are hidden by default. Show them from the View menu when needed.");
+}
+
+QString mediaSourceKindToString(MediaSourceKind kind)
+{
+    switch (kind) {
+    case MediaSourceKind::ImageFile:
+        return QStringLiteral("ImageFile");
+    case MediaSourceKind::VideoFile:
+        return QStringLiteral("VideoFile");
+    case MediaSourceKind::ImageFolder:
+        return QStringLiteral("ImageFolder");
+    }
+    return QStringLiteral("ImageFile");
+}
+
+MediaSourceKind mediaSourceKindFromString(const QString& value)
+{
+    if (value == QStringLiteral("VideoFile")) {
+        return MediaSourceKind::VideoFile;
+    }
+    if (value == QStringLiteral("ImageFolder")) {
+        return MediaSourceKind::ImageFolder;
+    }
+    return MediaSourceKind::ImageFile;
+}
+
+struct SampleResourceEntry
+{
+    const char* relativePath;
+    const char* englishLabel;
+    const char* chineseLabel;
+};
+
+const SampleResourceEntry kSamplePipelines[] = {
+    {"samples/pipelines/basic_blur.json", "Basic Gaussian Blur", "\u57fa\u7840\u9ad8\u65af\u6a21\u7cca"},
+    {"samples/pipelines/edge_canny.json", "Grayscale + Canny", "\u7070\u5ea6 + Canny \u8fb9\u7f18"},
+    {"samples/pipelines/morphology_open.json", "Threshold + Morphology Open", "\u9608\u503c + \u5f00\u8fd0\u7b97"},
+    {"samples/pipelines/histogram_sidecar.json", "Histogram Sidecar", "\u76f4\u65b9\u56fe Sidecar"},
+};
+
+const SampleResourceEntry kSampleProjects[] = {
+    {"samples/projects/demo_project.json", "Demo Blur Project", "\u6a21\u7cca\u6f14\u793a\u9879\u76ee"},
+    {"samples/projects/edge_canny_project.json", "Edge Canny Project", "Canny \u8fb9\u7f18\u9879\u76ee"},
+};
+
+bool isImageFilePath(const QString& path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == "png" || suffix == "jpg" || suffix == "jpeg" || suffix == "bmp"
+        || suffix == "tif" || suffix == "tiff" || suffix == "webp";
+}
+
+bool isVideoFilePath(const QString& path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == "avi" || suffix == "mp4" || suffix == "mov" || suffix == "mkv"
+        || suffix == "wmv" || suffix == "webm";
+}
+
+bool isOnnxModelPath(const QString& path)
+{
+    return QFileInfo(path).suffix().compare(QStringLiteral("onnx"), Qt::CaseInsensitive) == 0;
 }
 
 QString localizedParameterNameForSummary(const QString& key, const QString& displayName, const QString& languageCode)
@@ -93,6 +253,7 @@ QString localizedParameterNameForSummary(const QString& key, const QString& disp
     if (key == "enabled") return QStringLiteral("\u542f\u7528");
     if (key == "mode") return QStringLiteral("\u6a21\u5f0f");
     if (key == "secondaryImagePath") return QStringLiteral("\u7b2c\u4e8c\u5f20\u56fe\u8def\u5f84");
+    if (key == "templateImagePath") return QStringLiteral("\u6a21\u677f\u56fe\u7247\u8def\u5f84");
     if (key == "direction") return QStringLiteral("\u65b9\u5411");
     if (key == "polarMode") return QStringLiteral("\u6781\u5750\u6807\u6a21\u5f0f");
     if (key == "centerMode") return QStringLiteral("\u4e2d\u5fc3\u6a21\u5f0f");
@@ -463,6 +624,52 @@ DetectionFrameResult detectionResultFromAnnotations(const QVariantMap& annotatio
     return result;
 }
 
+cv::Mat applyPreviewScale(const cv::Mat& source, double scale)
+{
+    if (source.empty() || scale >= 0.99) {
+        return source;
+    }
+
+    cv::Mat scaled;
+    cv::resize(source, scaled, cv::Size(), scale, scale, cv::INTER_AREA);
+    return scaled;
+}
+
+QString modelResultSummary(const FramePacket& frame, const DetectionFrameResult& detectionResult)
+{
+    if (!detectionResult.boxes.isEmpty()) {
+        return QString("Detections: %1").arg(detectionResult.boxes.size());
+    }
+
+    const QVariantList topPredictions = frame.artifacts.value("classification_top_k").toList();
+    if (!topPredictions.isEmpty()) {
+        const QVariantMap first = topPredictions.first().toMap();
+        return QString("Top-1: %1 (%2)")
+            .arg(first.value("label").toString())
+            .arg(first.value("score").toDouble(), 0, 'f', 3);
+    }
+
+    if (frame.artifacts.value("segmentation_applied").toBool()) {
+        return QString("Segmentation classes: %1")
+            .arg(frame.metrics.value("segmentation_class_count").toInt());
+    }
+
+    if (frame.artifacts.contains("ocr_text")) {
+        return QString("OCR: %1").arg(frame.artifacts.value("ocr_text").toString());
+    }
+
+    if (frame.artifacts.contains("keypoints")) {
+        return QString("Keypoints: %1").arg(frame.artifacts.value("keypoints").toList().size());
+    }
+
+    if (frame.artifacts.contains("custom_tensor_outputs")) {
+        return QString("Tensor outputs: %1")
+            .arg(frame.artifacts.value("custom_tensor_outputs").toList().size());
+    }
+
+    return QString();
+}
+
 QStringList collectSupportedImageFiles(const QString& directoryPath)
 {
     QDir directory(directoryPath);
@@ -547,6 +754,54 @@ DetectionExportService::DetectionExportContext buildExportContext(
     return context;
 }
 
+void configureWorkbenchTabWidget(QTabWidget* tabs)
+{
+    if (!tabs) {
+        return;
+    }
+
+    tabs->setDocumentMode(false);
+    tabs->setUsesScrollButtons(true);
+    tabs->tabBar()->setExpanding(true);
+    tabs->tabBar()->setMinimumHeight(42);
+    tabs->tabBar()->setDrawBase(false);
+}
+
+QWidget* wrapWorkbenchDockWidget(QTabWidget* tabs)
+{
+    configureWorkbenchTabWidget(tabs);
+
+    auto* host = new QWidget();
+    auto* layout = new QVBoxLayout(host);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(0);
+    layout->addWidget(tabs);
+    return host;
+}
+
+void suppressDockTitleBar(QDockWidget* dock)
+{
+    if (!dock) {
+        return;
+    }
+
+    auto* placeholder = new QWidget(dock);
+    dock->setTitleBarWidget(placeholder);
+}
+
+QTabWidget* findWorkbenchTabs(QDockWidget* dock)
+{
+    if (!dock || !dock->widget()) {
+        return nullptr;
+    }
+
+    if (auto* tabs = qobject_cast<QTabWidget*>(dock->widget())) {
+        return tabs;
+    }
+
+    return dock->widget()->findChild<QTabWidget*>();
+}
+
 }
 
 MainWindow::MainWindow(QWidget* parent)
@@ -556,6 +811,7 @@ MainWindow::MainWindow(QWidget* parent)
     ui->setupUi(this);
     resize(1920, 1080);
     m_appSettings = AppSettingsStore::load();
+    syncPreviewSettingsFromAppSettings();
 
     ui->verticalLayout->setContentsMargins(10, 10, 10, 10);
     ui->verticalLayout->setSpacing(8);
@@ -565,9 +821,8 @@ MainWindow::MainWindow(QWidget* parent)
     ui->sourcePanel->setFrameShape(QFrame::StyledPanel);
     ui->resultPanel->setFrameShape(QFrame::StyledPanel);
     ui->statusPanel->setFrameShape(QFrame::StyledPanel);
-    ui->statusPanel->setMinimumHeight(150);
-    ui->statusPanel->setMaximumHeight(220);
-    ui->statusPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    ui->statusPanel->setMinimumHeight(200);
+    ui->statusPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
     setStyleSheet(R"qss(
         QMainWindow,
@@ -650,6 +905,20 @@ MainWindow::MainWindow(QWidget* parent)
             border: 1px solid #3f444d;
             border-radius: 6px;
             padding: 6px 8px;
+        }
+
+        QFrame#statusPanel QPushButton {
+            min-height: 28px;
+            padding: 4px 12px;
+        }
+
+        QSlider#timelineSlider {
+            min-height: 24px;
+        }
+
+        QProgressBar#taskConsoleProgressBar {
+            min-height: 22px;
+            max-height: 22px;
         }
 
         QWidget#parameterFormHost {
@@ -906,56 +1175,214 @@ MainWindow::MainWindow(QWidget* parent)
             border: 1px solid #5b6470;
             padding: 5px;
         }
+
+        QDockWidget#modelListDock,
+        QDockWidget#inspectorDock {
+            background: #303238;
+            color: #e7e9ed;
+            border: 1px solid #474b54;
+        }
+
+        QDockWidget#modelListDock::title,
+        QDockWidget#inspectorDock::title {
+            background: #1f2125;
+            color: #dfe2e7;
+            padding: 6px 8px;
+            border-bottom: 1px solid #393c42;
+        }
+
+        QTabWidget#workbenchLeftTabs,
+        QTabWidget#workbenchInspectorTabs {
+            background: #303238;
+        }
+
+        QTabWidget#workbenchLeftTabs QTabBar,
+        QTabWidget#workbenchInspectorTabs QTabBar {
+            background: #2a2d33;
+            min-height: 42px;
+        }
+
+        QTabWidget#workbenchLeftTabs::pane,
+        QTabWidget#workbenchInspectorTabs::pane {
+            border: 1px solid #474b54;
+            border-top: 0;
+            background: #303238;
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 6px;
+            padding: 10px 8px 8px 8px;
+            margin-top: 2px;
+        }
+
+        QTabWidget#workbenchLeftTabs QTabBar::tab,
+        QTabWidget#workbenchInspectorTabs QTabBar::tab {
+            background: #2a2d33;
+            color: #b8bec9;
+            border: 1px solid #474b54;
+            border-bottom: none;
+            min-width: 88px;
+            min-height: 34px;
+            padding: 10px 20px;
+            margin-top: 6px;
+            margin-right: 4px;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+
+        QTabWidget#workbenchLeftTabs QTabBar::tab:selected,
+        QTabWidget#workbenchInspectorTabs QTabBar::tab:selected {
+            background: #303238;
+            color: #f0f3f7;
+            border-color: #555b66;
+        }
+
+        QTabWidget#workbenchLeftTabs QTabBar::tab:hover:!selected,
+        QTabWidget#workbenchInspectorTabs QTabBar::tab:hover:!selected {
+            background: #353942;
+            color: #e7e9ed;
+        }
+
+        QPlainTextEdit#diagnosticsTextEdit {
+            color: #dfe4eb;
+            background: #25282e;
+            border: 1px solid #4d535e;
+            border-radius: 5px;
+            padding: 6px;
+            selection-background-color: #2f73d6;
+            selection-color: #ffffff;
+        }
+
+        QLabel#statisticsMetricsLabel,
+        QLabel#statisticsTimingLabel {
+            color: #dfe4eb;
+            background: #25282e;
+            border: 1px solid #4d535e;
+            border-radius: 5px;
+            min-height: 52px;
+            padding: 10px 12px;
+        }
+
+        QWidget#modelListPanel,
+        QWidget#taskHistoryPanel,
+        QWidget#statisticsPanel,
+        QWidget#diagnosticsPanel {
+            background: #303238;
+        }
+
+        QListWidget#modelListWidget,
+        QListWidget#taskHistoryList {
+            border: 1px solid #4d535e;
+            border-radius: 5px;
+            padding: 4px;
+            min-height: 120px;
+        }
+
+        QLabel#statisticsTitleLabel,
+        QLabel#taskHistoryTitleLabel,
+        QLabel#modelListTitleLabel {
+            color: #f0f3f7;
+            font-weight: 700;
+            padding-bottom: 2px;
+        }
     )qss");
 
-    registerBuiltinOperators(m_operatorRegistry);
+    ui->sourcePanel->hide();
+    ui->resultPanel->hide();
 
-    auto* sourceLayout = new QVBoxLayout(ui->sourcePanel);
-    sourceLayout->setContentsMargins(10, 10, 10, 10);
-    sourceLayout->setSpacing(8);
-    m_sourcePreviewTitleLabel = new QLabel(ui->sourcePanel);
-    QFont sectionTitleFont = m_sourcePreviewTitleLabel->font();
-    sectionTitleFont.setPointSize(11);
-    sectionTitleFont.setBold(true);
-    m_sourcePreviewTitleLabel->setFont(sectionTitleFont);
-    sourceLayout->addWidget(m_sourcePreviewTitleLabel);
-    m_sourceCanvasView = new CanvasView(ui->sourcePanel);
-    sourceLayout->addWidget(m_sourceCanvasView, 1);
+    m_previewCanvasHost = new PreviewCanvasHost(ui->centralwidget);
+    m_sourceCanvasView = m_previewCanvasHost->sourceCanvas();
+    m_canvasView = m_previewCanvasHost->resultCanvas();
+    ui->previewLayout->addWidget(m_previewCanvasHost, 1);
+    if (ui->previewLayout->count() >= 2) {
+        ui->previewLayout->setStretch(0, 1);
+        ui->previewLayout->setStretch(1, 0);
+    }
+
     connect(m_sourceCanvasView, &CanvasView::imagePointClicked, this, [this](const QPointF& imagePoint) {
         handleSourceCanvasPointClicked(imagePoint);
     });
+    connect(m_sourceCanvasView, &CanvasView::cursorMoved, this, &MainWindow::updateCursorStatus);
+    connect(m_canvasView, &CanvasView::cursorMoved, this, &MainWindow::updateCursorStatus);
 
-    auto* resultLayout = new QVBoxLayout(ui->resultPanel);
-    resultLayout->setContentsMargins(10, 10, 10, 10);
-    resultLayout->setSpacing(8);
+    m_sourcePreviewTitleLabel = new QLabel(ui->sourcePanel);
+    m_sourcePreviewTitleLabel->hide();
     m_resultPreviewTitleLabel = new QLabel(ui->resultPanel);
-    m_resultPreviewTitleLabel->setFont(sectionTitleFont);
-    resultLayout->addWidget(m_resultPreviewTitleLabel);
-    m_canvasView = new CanvasView(ui->resultPanel);
-    resultLayout->addWidget(m_canvasView, 1);
+    m_resultPreviewTitleLabel->hide();
 
     auto* statusLayout = new QVBoxLayout(ui->statusPanel);
-    statusLayout->setContentsMargins(10, 6, 10, 6);
-    statusLayout->setSpacing(4);
+    statusLayout->setContentsMargins(12, 10, 12, 10);
+    statusLayout->setSpacing(8);
     m_previewTitleLabel = new QLabel(ui->statusPanel);
+    QFont sectionTitleFont = m_previewTitleLabel->font();
+    sectionTitleFont.setPointSize(11);
+    sectionTitleFont.setBold(true);
     m_previewTitleLabel->setFont(sectionTitleFont);
     statusLayout->addWidget(m_previewTitleLabel);
     m_previewInfoLabel = new QLabel(ui->statusPanel);
     m_previewInfoLabel->setWordWrap(true);
+    m_previewInfoLabel->setMaximumHeight(44);
     statusLayout->addWidget(m_previewInfoLabel);
     m_previewDetailsLabel = new QLabel(ui->statusPanel);
     m_previewDetailsLabel->setObjectName("previewDetailsLabel");
     m_previewDetailsLabel->setWordWrap(true);
     m_previewDetailsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_previewDetailsLabel->setMaximumHeight(34);
+    m_previewDetailsLabel->setMaximumHeight(56);
     statusLayout->addWidget(m_previewDetailsLabel);
 
-    m_videoPlaybackTimer = new QTimer(this);
-    m_videoPlaybackTimer->setSingleShot(false);
+    m_timelineWidget = new TimelineWidget(ui->statusPanel);
+    m_timelineWidget->setObjectName("timelineWidget");
+    m_timelineWidget->setMinimumHeight(34);
+    statusLayout->addWidget(m_timelineWidget);
+    connect(m_timelineWidget, &TimelineWidget::frameChanged, this, [this](int frameIndex) {
+        requestVideoFrame(frameIndex);
+    });
+
+    m_taskConsolePanel = new TaskConsolePanel(ui->statusPanel);
+    statusLayout->addWidget(m_taskConsolePanel);
+
+    m_statusDetailsLabel = new QLabel(this);
+    m_statusDetailsLabel->setObjectName("statusDetailsLabel");
+    m_cursorStatusLabel = new QLabel(this);
+    m_cursorStatusLabel->setObjectName("cursorStatusLabel");
+    m_appVersionLabel = new QLabel(this);
+    m_appVersionLabel->setObjectName("appVersionLabel");
+    statusBar()->addPermanentWidget(m_cursorStatusLabel);
+    statusBar()->addPermanentWidget(m_statusDetailsLabel);
+    statusBar()->addPermanentWidget(m_appVersionLabel);
 
     createWorkbenchDialogs();
     createEmbeddedWorkbench();
     createMenus();
+
+    TaskScheduler& taskScheduler = ApplicationContext::instance().taskScheduler();
+    connect(m_taskConsolePanel, &TaskConsolePanel::cancelRequested, &taskScheduler, &TaskScheduler::cancelTask);
+    connect(m_taskConsolePanel, &TaskConsolePanel::pauseRequested, &taskScheduler, &TaskScheduler::pauseTask);
+    connect(m_taskConsolePanel, &TaskConsolePanel::resumeRequested, &taskScheduler, &TaskScheduler::resumeTask);
+    connect(&taskScheduler, &TaskScheduler::progressChanged, m_taskConsolePanel, &TaskConsolePanel::updateProgress);
+    connect(&taskScheduler, &TaskScheduler::progressChanged, this, [this](const TaskProgress& progress) {
+        updateLatestTaskHistory(progress);
+    });
+    connect(&taskScheduler, &TaskScheduler::taskFinished, this, [this](bool success) {
+        if (!m_taskHistory.isEmpty()) {
+            m_taskHistory[0].state = success ? TaskState::Completed : TaskState::Failed;
+            m_taskHistory[0].finishedAt = QDateTime::currentDateTime();
+            refreshTaskHistoryPanel();
+        }
+        if (m_taskConsolePanel) {
+            m_taskConsolePanel->appendLogSummary(DiagnosticsLog::instance().summaryText());
+        }
+        if (!success) {
+            statusBar()->showMessage(localizedText(
+                m_appSettings.languageCode,
+                "Background task failed",
+                QStringLiteral("后台任务失败")
+            ));
+        }
+    });
+
+    setAcceptDrops(true);
+
+    m_videoPlaybackTimer = new QTimer(this);
+    m_videoPlaybackTimer->setSingleShot(false);
 
     connect(m_mediaPanel, &MediaPanel::openImageRequested, this, [this] { loadImageFile(); });
     connect(m_mediaPanel, &MediaPanel::openVideoRequested, this, [this] { loadVideoFile(); });
@@ -1000,6 +1427,18 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_parameterPanel, &ParameterPanel::parameterValuesChanged, this, [this](const QVariantMap& values) {
         updateOperatorParameters(values);
     });
+    connect(m_parameterPanel, &ParameterPanel::resetToDefaultsRequested, this, &MainWindow::handleParameterReset);
+    connect(m_parameterPanel, &ParameterPanel::savePresetRequested, this, &MainWindow::handleParameterSavePreset);
+    connect(m_parameterPanel, &ParameterPanel::loadPresetRequested, this, &MainWindow::handleParameterLoadPreset);
+
+    registerApplicationCommands();
+    DnnRuntimeInfo::logBackendInfo();
+    const DnnRuntimeInfo::BackendInfo backendInfo = DnnRuntimeInfo::queryBackendInfo();
+    DiagnosticsLog::instance().recordRuntimeBackend(backendInfo.preferredBackend, backendInfo.preferredTarget);
+    if (m_appVersionLabel) {
+        m_appVersionLabel->setText(QString("%1 | %2")
+            .arg(AppVersion::displayName(), backendInfo.preferredBackend));
+    }
 
     setLanguage(m_appSettings.languageCode);
     statusBar()->showMessage(localizedText(
@@ -1014,9 +1453,192 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::showEvent(QShowEvent* event)
+{
+    QMainWindow::showEvent(event);
+    if (!m_workbenchDocksInitialized) {
+        initializeWorkbenchDocks();
+        m_workbenchDocksInitialized = true;
+        showWelcomeGuideIfNeeded();
+    }
+}
+
+void MainWindow::initializeWorkbenchDocks()
+{
+    if (m_modelDock) {
+        return;
+    }
+
+    m_modelListPanel = new ModelListPanel(this);
+    m_taskHistoryPanel = new TaskHistoryPanel(this);
+    auto* leftTabs = new QTabWidget(this);
+    leftTabs->setObjectName("workbenchLeftTabs");
+    leftTabs->addTab(m_modelListPanel, "Models");
+    leftTabs->addTab(m_taskHistoryPanel, "Tasks");
+    m_modelDock = new QDockWidget("Models", this);
+    m_modelDock->setObjectName("modelListDock");
+    m_modelDock->setWidget(wrapWorkbenchDockWidget(leftTabs));
+    m_modelDock->setMinimumWidth(280);
+    suppressDockTitleBar(m_modelDock);
+    addDockWidget(Qt::LeftDockWidgetArea, m_modelDock);
+
+    m_diagnosticsPanel = new DiagnosticsPanel(this);
+    m_statisticsPanel = new StatisticsPanel(this);
+    auto* inspectorTabs = new QTabWidget(this);
+    inspectorTabs->setObjectName("workbenchInspectorTabs");
+    inspectorTabs->addTab(m_statisticsPanel, "Statistics");
+    inspectorTabs->addTab(m_diagnosticsPanel, "Diagnostics");
+    m_inspectorDock = new QDockWidget("Inspector", this);
+    m_inspectorDock->setObjectName("inspectorDock");
+    m_inspectorDock->setWidget(wrapWorkbenchDockWidget(inspectorTabs));
+    m_inspectorDock->setMinimumWidth(300);
+    suppressDockTitleBar(m_inspectorDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_inspectorDock);
+
+    connect(m_modelListPanel, &ModelListPanel::modelActivated, this, &MainWindow::activateModelByName);
+    connect(m_modelListPanel, &ModelListPanel::editModelRequested, this, [this](const QString&) {
+        editActiveModelConfig();
+    });
+    connect(m_taskHistoryPanel, &TaskHistoryPanel::openOutputDirectoryRequested, this, &MainWindow::openExportOutputDirectory);
+    m_modelListPanel->setLanguage(m_appSettings.languageCode);
+    m_taskHistoryPanel->setLanguage(m_appSettings.languageCode);
+    if (m_diagnosticsPanel) {
+        m_diagnosticsPanel->setLanguage(m_appSettings.languageCode);
+    }
+    if (m_statisticsPanel) {
+        m_statisticsPanel->setLanguage(m_appSettings.languageCode);
+    }
+    m_modelListPanel->refreshModels();
+    refreshTaskHistoryPanel();
+    localizeWorkbenchDocks(m_appSettings.languageCode);
+    setupWorkbenchViewMenu();
+}
+
+void MainWindow::setupWorkbenchViewMenu()
+{
+    if (!m_viewMenu || !m_modelDock || !m_inspectorDock || m_showModelDockAction) {
+        return;
+    }
+
+    m_showModelDockAction = m_modelDock->toggleViewAction();
+    m_showModelDockAction->setObjectName("showModelDockAction");
+    m_showModelDockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
+
+    m_showInspectorDockAction = m_inspectorDock->toggleViewAction();
+    m_showInspectorDockAction->setObjectName("showInspectorDockAction");
+    m_showInspectorDockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I));
+
+    m_viewMenu->addAction(m_showModelDockAction);
+    m_viewMenu->addAction(m_showInspectorDockAction);
+    m_viewMenu->addSeparator();
+
+    m_showAllWorkbenchPanelsAction = m_viewMenu->addAction(
+        "Show All Side Panels",
+        this,
+        [this] {
+            if (m_modelDock) {
+                m_modelDock->show();
+            }
+            if (m_inspectorDock) {
+                m_inspectorDock->show();
+            }
+        });
+    m_showAllWorkbenchPanelsAction->setObjectName("showAllWorkbenchPanelsAction");
+
+    m_hideAllWorkbenchPanelsAction = m_viewMenu->addAction(
+        "Hide All Side Panels",
+        this,
+        [this] {
+            if (m_modelDock) {
+                m_modelDock->hide();
+            }
+            if (m_inspectorDock) {
+                m_inspectorDock->hide();
+            }
+        });
+    m_hideAllWorkbenchPanelsAction->setObjectName("hideAllWorkbenchPanelsAction");
+    m_viewMenu->addSeparator();
+
+    m_showDiagnosticsAction = m_viewMenu->addAction(
+        "Show Diagnostics",
+        this,
+        [this] { showInspectorPanel(1); });
+    m_showDiagnosticsAction->setObjectName("showDiagnosticsAction");
+    m_showDiagnosticsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
+
+    m_modelDock->hide();
+    m_inspectorDock->hide();
+
+    rebuildMenuTexts();
+}
+
+void MainWindow::showInspectorPanel(int tabIndex)
+{
+    if (!m_inspectorDock) {
+        return;
+    }
+
+    m_inspectorDock->show();
+    m_inspectorDock->raise();
+    if (auto* tabs = findWorkbenchTabs(m_inspectorDock)) {
+        if (tabIndex >= 0 && tabIndex < tabs->count()) {
+            tabs->setCurrentIndex(tabIndex);
+        }
+    }
+}
+
+void MainWindow::localizeWorkbenchDocks(const QString& languageCode)
+{
+    if (m_modelDock) {
+        m_modelDock->setWindowTitle(localizedText(languageCode, "Models", QStringLiteral("\u6a21\u578b")));
+        if (auto* tabs = findWorkbenchTabs(m_modelDock)) {
+            tabs->setTabText(0, localizedText(languageCode, "Models", QStringLiteral("\u6a21\u578b")));
+            tabs->setTabText(1, localizedText(languageCode, "Tasks", QStringLiteral("\u4efb\u52a1")));
+        }
+    }
+    if (m_inspectorDock) {
+        m_inspectorDock->setWindowTitle(localizedText(languageCode, "Inspector", QStringLiteral("\u68c0\u67e5\u5668")));
+        if (auto* tabs = findWorkbenchTabs(m_inspectorDock)) {
+            tabs->setTabText(0, localizedText(languageCode, "Statistics", QStringLiteral("\u7edf\u8ba1")));
+            tabs->setTabText(1, localizedText(languageCode, "Diagnostics", QStringLiteral("\u8bca\u65ad")));
+        }
+    }
+}
+
+void MainWindow::setupKeyboardShortcuts()
+{
+    if (m_openImageAction) {
+        m_openImageAction->setShortcut(QKeySequence::Open);
+    }
+    if (m_saveProjectAction) {
+        m_saveProjectAction->setShortcut(QKeySequence::Save);
+    }
+    if (m_loadProjectAction) {
+        m_loadProjectAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
+    }
+    if (m_savePipelineAction) {
+        m_savePipelineAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
+    }
+    if (m_systemSettingsAction) {
+        m_systemSettingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
+    }
+
+    auto* rerunShortcut = new QShortcut(QKeySequence(Qt::Key_F5), this);
+    connect(rerunShortcut, &QShortcut::activated, this, [this] { rerunPreview(); });
+
+    auto* playPauseShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
+    connect(playPauseShortcut, &QShortcut::activated, this, [this] {
+        if (m_currentMediaInfo.kind == MediaSourceKind::VideoFile
+            || m_currentMediaInfo.kind == MediaSourceKind::ImageFolder) {
+            toggleVideoPlayback(!m_videoPlaybackTimer->isActive());
+        }
+    });
+}
+
 void MainWindow::createWorkbenchDialogs()
 {
     m_operatorParameterDialog = new OperatorParameterDialog(this);
+    m_operatorParameterDialog->setWindowFlags(Qt::Window);
     m_operatorParameterDialog->setObjectName("operatorParameterDialog");
     m_operatorParameterDialog->setModal(false);
     connect(m_operatorParameterDialog, &OperatorParameterDialog::previewRequested, this, [this] {
@@ -1032,7 +1654,7 @@ void MainWindow::createWorkbenchDialogs()
             return;
         }
 
-        auto clonedStep = m_operatorRegistry.create(operatorId);
+        auto clonedStep = ApplicationContext::instance().operatorRegistry().create(operatorId);
         if (!clonedStep) {
             return;
         }
@@ -1049,7 +1671,7 @@ void MainWindow::createWorkbenchDialogs()
         rerunPreview();
     });
 
-    m_mediaWorkbenchDialog = new QDialog(this);
+    m_mediaWorkbenchDialog = new QDialog(this, Qt::Window);
     m_mediaWorkbenchDialog->setObjectName("mediaWorkbenchDialog");
     m_mediaWorkbenchDialog->setModal(false);
     m_mediaWorkbenchDialog->resize(560, 420);
@@ -1058,7 +1680,7 @@ void MainWindow::createWorkbenchDialogs()
     m_mediaPanel = new MediaPanel(m_mediaWorkbenchDialog);
     mediaLayout->addWidget(m_mediaPanel);
 
-    m_pipelineWorkbenchDialog = new QDialog(this);
+    m_pipelineWorkbenchDialog = new QDialog(this, Qt::Window);
     m_pipelineWorkbenchDialog->setObjectName("pipelineWorkbenchDialog");
     m_pipelineWorkbenchDialog->setModal(false);
     m_pipelineWorkbenchDialog->resize(1180, 760);
@@ -1070,7 +1692,7 @@ void MainWindow::createWorkbenchDialogs()
     pipelineLayout->addWidget(m_pipelinePanel, 5);
     pipelineLayout->addWidget(m_parameterPanel, 4);
 
-    m_exportResultsDialog = new QDialog(this);
+    m_exportResultsDialog = new QDialog(this, Qt::Window);
     m_exportResultsDialog->setObjectName("exportResultsDialog");
     m_exportResultsDialog->setModal(false);
     m_exportResultsDialog->resize(560, 720);
@@ -1079,7 +1701,7 @@ void MainWindow::createWorkbenchDialogs()
     m_exportResultsPanel = new ExportResultsPanel(m_exportResultsDialog);
     exportLayout->addWidget(m_exportResultsPanel);
 
-    m_pipelinePanel->setOperators(m_operatorRegistry.allOperators());
+    m_pipelinePanel->setOperators(ApplicationContext::instance().operatorRegistry().allOperators());
 }
 
 void MainWindow::createEmbeddedWorkbench()
@@ -1103,7 +1725,7 @@ void MainWindow::createEmbeddedWorkbench()
     operatorButtonsGrid->setHorizontalSpacing(6);
     operatorButtonsGrid->setVerticalSpacing(6);
     operatorButtonsGrid->setContentsMargins(0, 0, 0, 0);
-    const QList<OperatorDescriptor> descriptors = m_operatorRegistry.allOperators();
+    const QList<OperatorDescriptor> descriptors = ApplicationContext::instance().operatorRegistry().allOperators();
     int categoryButtonIndex = 0;
     for (const OperatorCategoryDefinition& category : operatorMenuCategories()) {
         const QString categoryKey = QString::fromLatin1(category.key);
@@ -1223,15 +1845,21 @@ void MainWindow::createEmbeddedWorkbench()
 
     ui->verticalLayout->insertWidget(0, m_operatorWorkbenchPanel);
     ui->verticalLayout->setStretch(0, 0);
-    ui->verticalLayout->setStretch(1, 1);
-    ui->verticalLayout->setStretch(2, 0);
+    ui->verticalLayout->setStretch(1, 4);
+    ui->verticalLayout->setStretch(2, 1);
 
     if (m_parameterPanel) {
-        m_parameterPanel->setMinimumHeight(90);
-        m_parameterPanel->setMaximumHeight(120);
+        m_parameterPanel->setCompactMode(true);
+        m_parameterPanel->setMinimumHeight(64);
+        m_parameterPanel->setMaximumHeight(140);
         m_parameterPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
         if (auto* statusLayout = qobject_cast<QVBoxLayout*>(ui->statusPanel->layout())) {
-            statusLayout->insertWidget(1, m_parameterPanel, 0);
+            const int detailsIndex = statusLayout->indexOf(m_previewDetailsLabel);
+            if (detailsIndex >= 0) {
+                statusLayout->insertWidget(detailsIndex + 1, m_parameterPanel, 0);
+            } else {
+                statusLayout->insertWidget(3, m_parameterPanel, 0);
+            }
         }
     }
 
@@ -1314,7 +1942,7 @@ void MainWindow::rebuildEmbeddedWorkbenchTexts()
         ));
     }
 
-    const QList<OperatorDescriptor> descriptors = m_operatorRegistry.allOperators();
+    const QList<OperatorDescriptor> descriptors = ApplicationContext::instance().operatorRegistry().allOperators();
     for (QToolButton* button : m_operatorQuickAddButtons) {
         if (!button) {
             continue;
@@ -1394,62 +2022,146 @@ void MainWindow::setPreviewMode(PreviewMode mode)
     updateEmbeddedWorkbenchState();
 }
 
-void MainWindow::loadImageFile()
+void MainWindow::loadImageFile(const QString& filePath)
 {
-    const QString dialogTitle = localizedText(m_appSettings.languageCode, "Open Image", QStringLiteral("打开图片"));
-    const QString filePath = QFileDialog::getOpenFileName(this, dialogTitle, QString(), "Images (*.png *.jpg *.bmp)");
-    if (filePath.isEmpty()) {
+    QString resolvedPath = filePath;
+    if (resolvedPath.isEmpty()) {
+        const QString dialogTitle = localizedText(m_appSettings.languageCode, "Open Image", QStringLiteral("打开图片"));
+        resolvedPath = QFileDialog::getOpenFileName(this, dialogTitle, QString(), "Images (*.png *.jpg *.bmp)");
+    }
+    if (resolvedPath.isEmpty()) {
         return;
     }
 
-    cacheCurrentImageForWorkspaceUse(filePath);
-
-    ImageFileSource source(filePath);
-    FrameReadResult result = source.read({});
-    if (!result.success) {
-        statusBar()->showMessage(result.errorMessage);
-        return;
-    }
-
-    m_currentFrame = result.frame;
-    syncWorkspaceCachedImageArtifact();
-    m_perspectivePoints.clear();
-    m_affinePoints.clear();
-    m_floodFillSeeds.clear();
-    m_grabCutRectPoints.clear();
-    m_currentMediaInfo.kind = MediaSourceKind::ImageFile;
-    m_currentMediaInfo.sourceId = filePath;
-    m_currentMediaInfo.width = m_currentFrame.originalMat.cols;
-    m_currentMediaInfo.height = m_currentFrame.originalMat.rows;
-    m_currentMediaInfo.frameCount = 1;
-    m_currentMediaInfo.fps = 0.0;
-    m_currentVideoFrameIndex = 0;
-    m_mediaPanel->setVideoNavigationState(false, 0, 0);
-    statusBar()->showMessage(localizedText(
-        m_appSettings.languageCode,
-        QString("Loaded image: %1").arg(filePath),
-        QStringLiteral("已加载图片: %1").arg(filePath)
-    ));
-    rerunPreview();
+    recordRecentMedia(resolvedPath);
+    loadMediaFromPath(resolvedPath, MediaSourceKind::ImageFile, 0);
 }
 
-void MainWindow::loadVideoFile()
+void MainWindow::loadVideoFile(const QString& filePath)
 {
-    const QString dialogTitle = localizedText(m_appSettings.languageCode, "Open Video", QStringLiteral("打开视频"));
-    const QString filePath = QFileDialog::getOpenFileName(this, dialogTitle, QString(), "Videos (*.avi *.mp4 *.mov *.mkv)");
-    if (filePath.isEmpty()) {
+    QString resolvedPath = filePath;
+    if (resolvedPath.isEmpty()) {
+        const QString dialogTitle = localizedText(m_appSettings.languageCode, "Open Video", QStringLiteral("打开视频"));
+        resolvedPath = QFileDialog::getOpenFileName(this, dialogTitle, QString(), "Videos (*.avi *.mp4 *.mov *.mkv)");
+    }
+    if (resolvedPath.isEmpty()) {
         return;
     }
 
-    cacheCurrentImageForWorkspaceUse(filePath);
+    recordRecentMedia(resolvedPath);
+    loadMediaFromPath(resolvedPath, MediaSourceKind::VideoFile, 0);
+}
 
-    VideoFileSource source(filePath);
+void MainWindow::loadImageFolder(const QString& folderPath)
+{
+    QString resolvedPath = folderPath;
+    if (resolvedPath.isEmpty()) {
+        const QString dialogTitle = localizedText(
+            m_appSettings.languageCode,
+            "Open Image Folder",
+            QStringLiteral("打开图片文件夹")
+        );
+        resolvedPath = QFileDialog::getExistingDirectory(this, dialogTitle, QString());
+    }
+    if (resolvedPath.isEmpty()) {
+        return;
+    }
+
+    recordRecentMedia(resolvedPath);
+    loadMediaFromPath(resolvedPath, MediaSourceKind::ImageFolder, 0);
+}
+
+bool MainWindow::loadMediaFromPath(const QString& path, MediaSourceKind kind, int frameIndex)
+{
+    if (path.isEmpty()) {
+        return false;
+    }
+
+    QString resolvedPath = path;
+    if (!QFileInfo::exists(resolvedPath)) {
+        const QString resourcePath = PlatformPaths::resolveResourcePath(path);
+        if (QFileInfo::exists(resourcePath)) {
+            resolvedPath = resourcePath;
+        }
+    }
+
+    cacheCurrentImageForWorkspaceUse(resolvedPath);
+
+    if (kind == MediaSourceKind::ImageFile) {
+        ImageFileSource source(resolvedPath);
+        FrameReadResult result = source.read({});
+        if (!result.success) {
+            statusBar()->showMessage(result.errorMessage);
+            return false;
+        }
+
+        m_currentFrame = result.frame;
+        syncWorkspaceCachedImageArtifact();
+        m_perspectivePoints.clear();
+        m_affinePoints.clear();
+        m_floodFillSeeds.clear();
+        m_grabCutRectPoints.clear();
+        m_currentMediaInfo.kind = MediaSourceKind::ImageFile;
+        m_currentMediaInfo.sourceId = resolvedPath;
+        m_currentMediaInfo.width = m_currentFrame.originalMat.cols;
+        m_currentMediaInfo.height = m_currentFrame.originalMat.rows;
+        m_currentMediaInfo.frameCount = 1;
+        m_currentMediaInfo.fps = 0.0;
+        m_currentVideoFrameIndex = 0;
+        m_mediaPanel->setVideoNavigationState(false, 0, 0);
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Loaded image: %1").arg(path),
+            QStringLiteral("已加载图片: %1").arg(path)
+        ));
+        rerunPreview();
+        return true;
+    }
+
+    if (kind == MediaSourceKind::VideoFile) {
+        VideoFileSource source(resolvedPath);
+        m_currentMediaInfo = source.mediaInfo();
+
+        FrameReadResult result = source.read({frameIndex});
+        if (!result.success) {
+            statusBar()->showMessage(result.errorMessage);
+            return false;
+        }
+
+        m_currentFrame = result.frame;
+        syncWorkspaceCachedImageArtifact();
+        m_perspectivePoints.clear();
+        m_affinePoints.clear();
+        m_floodFillSeeds.clear();
+        m_grabCutRectPoints.clear();
+        m_currentVideoFrameIndex = frameIndex;
+        m_mediaPanel->setVideoPlaybackState(false);
+        m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, frameIndex);
+        rebuildMenuTexts();
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Loaded video: %1 (%2 frames)").arg(resolvedPath).arg(m_currentMediaInfo.frameCount),
+            QStringLiteral("已加载视频: %1 (%2 帧)").arg(resolvedPath).arg(m_currentMediaInfo.frameCount)
+        ));
+        rerunPreview();
+        return true;
+    }
+
+    ImageFolderSource source(resolvedPath);
     m_currentMediaInfo = source.mediaInfo();
+    if (m_currentMediaInfo.frameCount <= 0) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Image folder is empty: %1").arg(resolvedPath),
+            QStringLiteral("图片文件夹为空: %1").arg(resolvedPath)
+        ));
+        return false;
+    }
 
-    FrameReadResult result = source.read({0});
+    FrameReadResult result = source.read({frameIndex});
     if (!result.success) {
         statusBar()->showMessage(result.errorMessage);
-        return;
+        return false;
     }
 
     m_currentFrame = result.frame;
@@ -1458,41 +2170,442 @@ void MainWindow::loadVideoFile()
     m_affinePoints.clear();
     m_floodFillSeeds.clear();
     m_grabCutRectPoints.clear();
-    m_currentVideoFrameIndex = 0;
+    m_currentVideoFrameIndex = frameIndex;
     m_mediaPanel->setVideoPlaybackState(false);
-    m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, 0);
+    m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, frameIndex);
     rebuildMenuTexts();
     statusBar()->showMessage(localizedText(
         m_appSettings.languageCode,
-        QString("Loaded video: %1 (%2 frames)").arg(filePath).arg(m_currentMediaInfo.frameCount),
-        QStringLiteral("已加载视频: %1 (%2 帧)").arg(filePath).arg(m_currentMediaInfo.frameCount)
+        QString("Loaded image folder: %1 (%2 images)").arg(resolvedPath).arg(m_currentMediaInfo.frameCount),
+        QStringLiteral("已加载图片文件夹: %1 (%2 张图片)").arg(resolvedPath).arg(m_currentMediaInfo.frameCount)
     ));
     rerunPreview();
+    return true;
+}
+
+void MainWindow::recordRecentMedia(const QString& path)
+{
+    const QString trimmedPath = path.trimmed();
+    if (trimmedPath.isEmpty()) {
+        return;
+    }
+
+    m_appSettings.recentMediaFiles.removeAll(trimmedPath);
+    m_appSettings.recentMediaFiles.prepend(trimmedPath);
+    trimRecentFileLists();
+
+    AppSettingsStore::save(m_appSettings);
+    rebuildRecentMediaMenu();
+}
+
+void MainWindow::trimRecentFileLists()
+{
+    while (m_appSettings.recentMediaFiles.size() > m_appSettings.maxRecentMediaFiles) {
+        m_appSettings.recentMediaFiles.removeLast();
+    }
+    while (m_appSettings.recentProjectFiles.size() > m_appSettings.maxRecentMediaFiles) {
+        m_appSettings.recentProjectFiles.removeLast();
+    }
+}
+
+void MainWindow::rebuildRecentMediaMenu()
+{
+    if (!m_openRecentMenu) {
+        return;
+    }
+
+    m_openRecentMenu->clear();
+    for (const QString& path : m_appSettings.recentMediaFiles) {
+        if (path.isEmpty()) {
+            continue;
+        }
+
+        m_openRecentMenu->addAction(QFileInfo(path).fileName(), this, [this, path] {
+            if (QFileInfo(path).isDir()) {
+                loadImageFolder(path);
+                return;
+            }
+
+            if (isVideoFilePath(path)) {
+                loadVideoFile(path);
+                return;
+            }
+
+            loadImageFile(path);
+        });
+    }
+
+    if (m_openRecentMenu->isEmpty()) {
+        QAction* emptyAction = m_openRecentMenu->addAction(localizedText(
+            m_appSettings.languageCode,
+            "No Recent Media",
+            QStringLiteral("暂无最近媒体")
+        ));
+        emptyAction->setEnabled(false);
+    }
+}
+
+void MainWindow::recordRecentProject(const QString& filePath)
+{
+    const QString trimmedPath = filePath.trimmed();
+    if (trimmedPath.isEmpty()) {
+        return;
+    }
+
+    m_appSettings.recentProjectFiles.removeAll(trimmedPath);
+    m_appSettings.recentProjectFiles.prepend(trimmedPath);
+    trimRecentFileLists();
+
+    AppSettingsStore::save(m_appSettings);
+    rebuildRecentProjectMenu();
+}
+
+void MainWindow::rebuildRecentProjectMenu()
+{
+    if (!m_openRecentProjectMenu) {
+        return;
+    }
+
+    m_openRecentProjectMenu->clear();
+    for (const QString& path : m_appSettings.recentProjectFiles) {
+        if (path.isEmpty()) {
+            continue;
+        }
+
+        m_openRecentProjectMenu->addAction(QFileInfo(path).fileName(), this, [this, path] {
+            loadProjectFromPath(path);
+        });
+    }
+
+    if (m_openRecentProjectMenu->isEmpty()) {
+        QAction* emptyAction = m_openRecentProjectMenu->addAction(localizedText(
+            m_appSettings.languageCode,
+            "No Recent Projects",
+            QStringLiteral("暂无最近项目")
+        ));
+        emptyAction->setEnabled(false);
+    }
+}
+
+ProjectDefinition MainWindow::buildProjectDefinition() const
+{
+    ProjectDefinition project;
+    project.projectId = "cvverify.project";
+    project.displayName = m_currentProjectFilePath.isEmpty()
+        ? localizedText(m_appSettings.languageCode, "Untitled Project", QStringLiteral("未命名项目"))
+        : QFileInfo(m_currentProjectFilePath).completeBaseName();
+    project.mediaSourcePath = m_currentMediaInfo.sourceId;
+    project.mediaSourceKind = mediaSourceKindToString(m_currentMediaInfo.kind);
+    project.currentVideoFrameIndex = m_currentVideoFrameIndex;
+    project.pipeline = buildPipelineDefinition();
+    project.activeDetectionModel = m_activeDetectionModel;
+    project.activeDetectionModelPath = m_activeDetectionModelPath;
+    project.activeDetectionModelPackageDir = m_activeDetectionModelPackageDir;
+    project.appSettings = m_appSettings;
+    project.recentMediaFiles = m_appSettings.recentMediaFiles;
+    return project;
+}
+
+void MainWindow::applyProjectDefinition(const ProjectDefinition& project)
+{
+    m_appSettings = project.appSettings;
+    m_appSettings.recentMediaFiles = project.recentMediaFiles;
+    AppSettingsStore::save(m_appSettings);
+    ApplicationContext::instance().setAppSettings(m_appSettings);
+    setLanguage(m_appSettings.languageCode);
+
+    m_activeDetectionModel = project.activeDetectionModel;
+    m_activeDetectionModelPath = project.activeDetectionModelPath;
+    m_activeDetectionModelPackageDir = project.activeDetectionModelPackageDir;
+    m_activeDetectionLabels.clear();
+    if (!m_activeDetectionModelPackageDir.isEmpty()) {
+        const QString labelsPath = QDir(m_activeDetectionModelPackageDir).filePath("labels.txt");
+        const LabelLoadResult labels = LabelProvider::loadLabels(labelsPath);
+        if (labels.success) {
+            m_activeDetectionLabels = labels.labels;
+        }
+    } else if (!m_activeDetectionModelPath.isEmpty()) {
+        const QString labelsPath = QFileInfo(m_activeDetectionModelPath).absolutePath() + "/labels.txt";
+        const LabelLoadResult labels = LabelProvider::loadLabels(labelsPath);
+        if (labels.success) {
+            m_activeDetectionLabels = labels.labels;
+        }
+    }
+
+    if (!project.activeDetectionModel.modelName.isEmpty()) {
+        ApplicationContext::instance().modelRegistry().setActiveModelName(project.activeDetectionModel.modelName);
+    }
+
+    if (!applyPipelineDefinition(project.pipeline, project.projectId)) {
+        return;
+    }
+
+    rebuildRecentMediaMenu();
+
+    if (!project.mediaSourcePath.isEmpty()) {
+        loadMediaFromPath(
+            project.mediaSourcePath,
+            mediaSourceKindFromString(project.mediaSourceKind),
+            project.currentVideoFrameIndex
+        );
+    } else {
+        rerunPreview();
+    }
+}
+
+void MainWindow::saveProjectToFile()
+{
+    QString filePath = m_currentProjectFilePath;
+    if (filePath.isEmpty()) {
+        filePath = QFileDialog::getSaveFileName(
+            this,
+            localizedText(m_appSettings.languageCode, "Save Project", QStringLiteral("保存项目")),
+            QString(),
+            "CVVerify Project (*.cvproj.json)"
+        );
+    }
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QString errorMessage;
+    if (!ProjectService::saveToFile(buildProjectDefinition(), filePath, &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    m_currentProjectFilePath = filePath;
+    recordRecentProject(filePath);
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Saved project: %1").arg(filePath),
+        QStringLiteral("已保存项目: %1").arg(filePath)
+    ));
+}
+
+void MainWindow::loadProjectFromFile()
+{
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        localizedText(m_appSettings.languageCode, "Load Project", QStringLiteral("加载项目")),
+        QString(),
+        "CVVerify Project (*.cvproj.json)"
+    );
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    loadProjectFromPath(filePath);
+}
+
+void MainWindow::loadProjectFromPath(const QString& filePath)
+{
+    const ProjectLoadResult result = ProjectService::loadFromFile(filePath);
+    if (!result.success) {
+        statusBar()->showMessage(result.errorMessage);
+        return;
+    }
+
+    m_currentProjectFilePath = filePath;
+    recordRecentProject(filePath);
+    applyProjectDefinition(result.project);
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Loaded project: %1").arg(filePath),
+        QStringLiteral("已加载项目: %1").arg(filePath)
+    ));
+}
+
+void MainWindow::loadPipelineFromPath(const QString& filePath)
+{
+    const PipelineLoadResult result = PipelineJsonSerializer::loadFromFile(filePath);
+    if (!result.success) {
+        statusBar()->showMessage(result.errorMessage);
+        return;
+    }
+
+    applyPipelineDefinition(result.definition, filePath);
+}
+
+void MainWindow::editActiveModelConfig()
+{
+    if (m_activeDetectionModel.modelName.isEmpty() && m_activeDetectionModelPath.isEmpty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Import an ONNX model before editing model configuration",
+            QStringLiteral("请先导入 ONNX 模型，再编辑模型配置")
+        ));
+        return;
+    }
+
+    ModelConfigEditorDialog dialog(this);
+    dialog.setLanguage(m_appSettings.languageCode);
+    dialog.setDescriptor(m_activeDetectionModel);
+    if (m_currentFrame.hasOriginalFrame()) {
+        dialog.setPreviewContext(m_activeDetectionModelPath, m_activeDetectionLabels, m_currentFrame.originalMat);
+    }
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    m_activeDetectionModel = dialog.descriptor();
+    if (!m_activeDetectionModelPackageDir.isEmpty()) {
+        QString errorMessage;
+        if (!ModelPackageLoader::saveDescriptor(m_activeDetectionModel, m_activeDetectionModelPackageDir, &errorMessage)) {
+            statusBar()->showMessage(errorMessage);
+            return;
+        }
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Updated model configuration: %1").arg(m_activeDetectionModel.modelName),
+        QStringLiteral("已更新模型配置: %1").arg(m_activeDetectionModel.modelName)
+    ));
+    previewDetectionOnCurrentImage();
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (!event->mimeData()->hasUrls()) {
+        return;
+    }
+
+    for (const QUrl& url : event->mimeData()->urls()) {
+        if (url.isLocalFile()) {
+            event->acceptProposedAction();
+            return;
+        }
+    }
+}
+
+void MainWindow::dropEvent(QDropEvent* event)
+{
+    const QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.isEmpty()) {
+        return;
+    }
+
+    bool handled = false;
+    for (const QUrl& url : urls) {
+        if (!url.isLocalFile()) {
+            continue;
+        }
+
+        const QString localPath = url.toLocalFile();
+        if (localPath.isEmpty()) {
+            continue;
+        }
+
+        const QFileInfo fileInfo(localPath);
+        if (fileInfo.isDir()) {
+            loadImageFolder(localPath);
+            handled = true;
+            break;
+        }
+
+        if (isVideoFilePath(localPath)) {
+            loadVideoFile(localPath);
+            handled = true;
+            break;
+        }
+
+        if (isOnnxModelPath(localPath)) {
+            importOnnxModelWithOptionalPath(localPath);
+            handled = true;
+            break;
+        }
+
+        if (isImageFilePath(localPath)) {
+            loadImageFile(localPath);
+            handled = true;
+            break;
+        }
+
+        if (fileInfo.suffix().compare(QStringLiteral("json"), Qt::CaseInsensitive) == 0) {
+            QFile jsonFile(localPath);
+            if (jsonFile.open(QIODevice::ReadOnly)) {
+                QJsonParseError parseError;
+                const QJsonDocument document = QJsonDocument::fromJson(jsonFile.readAll(), &parseError);
+                if (parseError.error == QJsonParseError::NoError && document.isObject()) {
+                    const QJsonObject root = document.object();
+                    if (root.contains(QStringLiteral("projectId"))) {
+                        loadProjectFromPath(localPath);
+                        handled = true;
+                        break;
+                    }
+                    if (root.contains(QStringLiteral("steps"))) {
+                        loadPipelineFromPath(localPath);
+                        handled = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (handled) {
+        event->acceptProposedAction();
+        return;
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        "Unsupported dropped file type",
+        QStringLiteral("不支持的拖放文件类型")
+    ));
 }
 
 void MainWindow::requestVideoFrame(int frameIndex)
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile || m_currentMediaInfo.sourceId.isEmpty()) {
+    if (m_currentMediaInfo.sourceId.isEmpty()) {
         return;
     }
 
-    VideoFileSource source(m_currentMediaInfo.sourceId);
-    FrameReadResult result = source.read({frameIndex});
-    if (!result.success) {
-        statusBar()->showMessage(result.errorMessage);
+    if (m_currentMediaInfo.kind == MediaSourceKind::VideoFile) {
+        VideoFileSource source(m_currentMediaInfo.sourceId);
+        FrameReadResult result = source.read({frameIndex});
+        if (!result.success) {
+            statusBar()->showMessage(result.errorMessage);
+            return;
+        }
+
+        m_currentFrame = result.frame;
+        syncWorkspaceCachedImageArtifact();
+        m_currentVideoFrameIndex = frameIndex;
+        m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, frameIndex);
+        if (m_timelineWidget) {
+            m_timelineWidget->setRange(0, std::max(0, m_currentMediaInfo.frameCount - 1));
+            m_timelineWidget->updateFrameStatus(frameIndex, m_currentMediaInfo.frameCount);
+        }
+        rerunPreview();
         return;
     }
 
-    m_currentFrame = result.frame;
-    syncWorkspaceCachedImageArtifact();
-    m_currentVideoFrameIndex = frameIndex;
-    m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, frameIndex);
-    rerunPreview();
+    if (m_currentMediaInfo.kind == MediaSourceKind::ImageFolder) {
+        ImageFolderSource source(m_currentMediaInfo.sourceId);
+        FrameReadResult result = source.read({frameIndex});
+        if (!result.success) {
+            statusBar()->showMessage(result.errorMessage);
+            return;
+        }
+
+        m_currentFrame = result.frame;
+        syncWorkspaceCachedImageArtifact();
+        m_currentVideoFrameIndex = frameIndex;
+        m_mediaPanel->setVideoNavigationState(true, m_currentMediaInfo.frameCount, frameIndex);
+        if (m_timelineWidget) {
+            m_timelineWidget->setRange(0, std::max(0, m_currentMediaInfo.frameCount - 1));
+            m_timelineWidget->updateFrameStatus(frameIndex, m_currentMediaInfo.frameCount);
+        }
+        rerunPreview();
+    }
 }
 
 void MainWindow::requestPreviousVideoFrame()
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile) {
+    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile
+        && m_currentMediaInfo.kind != MediaSourceKind::ImageFolder) {
         return;
     }
     if (m_currentVideoFrameIndex <= 0) {
@@ -1504,7 +2617,8 @@ void MainWindow::requestPreviousVideoFrame()
 
 void MainWindow::requestNextVideoFrame()
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile) {
+    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile
+        && m_currentMediaInfo.kind != MediaSourceKind::ImageFolder) {
         return;
     }
     if (m_currentVideoFrameIndex >= std::max(0, m_currentMediaInfo.frameCount - 1)) {
@@ -1516,8 +2630,23 @@ void MainWindow::requestNextVideoFrame()
 
 void MainWindow::toggleVideoPlayback(bool playing)
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile) {
+    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile
+        && m_currentMediaInfo.kind != MediaSourceKind::ImageFolder) {
         m_mediaPanel->setVideoPlaybackState(false);
+        rebuildMenuTexts();
+        return;
+    }
+
+    if (m_currentMediaInfo.kind == MediaSourceKind::ImageFolder) {
+        if (!playing) {
+            m_videoPlaybackTimer->stop();
+            m_mediaPanel->setVideoPlaybackState(false);
+            rebuildMenuTexts();
+            return;
+        }
+
+        m_videoPlaybackTimer->start(500);
+        m_mediaPanel->setVideoPlaybackState(true);
         rebuildMenuTexts();
         return;
     }
@@ -1529,25 +2658,30 @@ void MainWindow::toggleVideoPlayback(bool playing)
         return;
     }
 
-    const int intervalMs = m_currentMediaInfo.fps > 0.0
+    const int nativeIntervalMs = m_currentMediaInfo.fps > 0.0
         ? std::max(1, static_cast<int>(1000.0 / m_currentMediaInfo.fps))
         : 40;
+    const int cappedIntervalMs = m_maxPreviewFps > 0
+        ? std::max(nativeIntervalMs, 1000 / m_maxPreviewFps)
+        : nativeIntervalMs;
 
-    m_videoPlaybackTimer->start(intervalMs);
+    m_videoPlaybackTimer->start(cappedIntervalMs);
     m_mediaPanel->setVideoPlaybackState(true);
     rebuildMenuTexts();
 }
 
 void MainWindow::advanceVideoPlayback()
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile) {
+    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile
+        && m_currentMediaInfo.kind != MediaSourceKind::ImageFolder) {
         m_videoPlaybackTimer->stop();
         m_mediaPanel->setVideoPlaybackState(false);
         rebuildMenuTexts();
         return;
     }
 
-    const int nextFrame = m_currentVideoFrameIndex + 1;
+    const int frameStep = m_appSettings.allowFrameSkip ? qMax(1, m_previewFrameStep) : 1;
+    const int nextFrame = m_currentVideoFrameIndex + frameStep;
     if (nextFrame >= std::max(1, m_currentMediaInfo.frameCount)) {
         m_videoPlaybackTimer->stop();
         m_mediaPanel->setVideoPlaybackState(false);
@@ -1560,12 +2694,21 @@ void MainWindow::advanceVideoPlayback()
 
 void MainWindow::importYoloModel()
 {
+    importOnnxModelWithOptionalPath(QString());
+}
+
+void MainWindow::importOnnxModelWithOptionalPath(const QString& modelPath)
+{
     YoloModelImportDialog dialog(this);
+    dialog.setLanguage(m_appSettings.languageCode);
+    if (!modelPath.isEmpty()) {
+        dialog.setInitialModelPath(modelPath);
+    }
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
 
-    const YoloImportRequest request = dialog.buildRequest();
+    ModelImportRequest request = dialog.buildImportRequest();
     if (request.modelName.isEmpty()) {
         statusBar()->showMessage(localizedText(
             m_appSettings.languageCode,
@@ -1575,10 +2718,32 @@ void MainWindow::importYoloModel()
         return;
     }
 
-    const YoloImportResult importResult = YoloOnnxImportService::buildImportDescriptor(request);
+    if (request.modelPath.isEmpty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Model path is required",
+            QStringLiteral("模型路径不能为空")
+        ));
+        return;
+    }
+
+    ModelImportResult importResult = ModelImportService::importModel(request);
     if (!importResult.success) {
         statusBar()->showMessage(importResult.errorMessage);
         return;
+    }
+
+    const QString selectedTemplate = dialog.selectedTemplateName();
+    if (!selectedTemplate.isEmpty()) {
+        DetectionModelDescriptor templateDescriptor;
+        QString templateError;
+        if (ModelTemplateLoader::loadTemplate(selectedTemplate, &templateDescriptor, &templateError)) {
+            ModelTemplateLoader::applyTemplateDefaults(importResult.descriptor, templateDescriptor);
+            importResult.descriptor.modelName = request.modelName;
+        } else if (!templateError.isEmpty()) {
+            statusBar()->showMessage(templateError);
+            return;
+        }
     }
 
     const QString packageDir = QDir("models").filePath(request.modelName);
@@ -1595,26 +2760,250 @@ void MainWindow::importYoloModel()
         statusBar()->showMessage(errorMessage);
         return;
     }
-    if (!copyImportedFile(request.labelsPath, packagedLabelsPath, &errorMessage)) {
-        statusBar()->showMessage(errorMessage);
-        return;
+    if (!request.labelsPath.isEmpty()) {
+        if (!copyImportedFile(request.labelsPath, packagedLabelsPath, &errorMessage)) {
+            statusBar()->showMessage(errorMessage);
+            return;
+        }
     }
 
-    const LabelLoadResult labels = LabelProvider::loadLabels(packagedLabelsPath);
-    if (!labels.success) {
-        statusBar()->showMessage(labels.errorMessage);
-        return;
+    QStringList labels;
+    if (QFileInfo::exists(packagedLabelsPath)) {
+        const LabelLoadResult labelResult = LabelProvider::loadLabels(packagedLabelsPath);
+        if (!labelResult.success) {
+            statusBar()->showMessage(labelResult.errorMessage);
+            return;
+        }
+        labels = labelResult.labels;
     }
 
     m_activeDetectionModel = importResult.descriptor;
     m_activeDetectionModelPath = QFileInfo(packagedModelPath).absoluteFilePath();
-    m_activeDetectionLabels = labels.labels;
+    m_activeDetectionModelPackageDir = QFileInfo(packageDir).absoluteFilePath();
+    m_activeDetectionLabels = labels;
+
+    RegisteredModelPackage registeredPackage;
+    registeredPackage.packageDir = m_activeDetectionModelPackageDir;
+    registeredPackage.modelPath = m_activeDetectionModelPath;
+    registeredPackage.descriptor = m_activeDetectionModel;
+    registeredPackage.labels = m_activeDetectionLabels;
+    ApplicationContext::instance().modelRegistry().registerPackage(registeredPackage);
+    ApplicationContext::instance().modelRegistry().setActiveModelName(m_activeDetectionModel.modelName);
+    ModelImportService::writePreviewPlaceholder(m_activeDetectionModelPackageDir, &errorMessage);
+    if (m_modelListPanel) {
+        m_modelListPanel->refreshModels();
+    }
+
     statusBar()->showMessage(localizedText(
         m_appSettings.languageCode,
-        QString("Imported YOLO model: %1").arg(request.modelName),
-        QStringLiteral("已导入 YOLO 模型: %1").arg(request.modelName)
+        QString("Imported ONNX model: %1 (%2)").arg(request.modelName, m_activeDetectionModel.taskType),
+        QStringLiteral("已导入 ONNX 模型: %1 (%2)").arg(request.modelName, m_activeDetectionModel.taskType)
     ));
     previewDetectionOnCurrentImage();
+}
+
+void MainWindow::showAboutDialog()
+{
+    const DnnRuntimeInfo::BackendInfo backendInfo = DnnRuntimeInfo::queryBackendInfo();
+    const QString aboutText = localizedText(
+        m_appSettings.languageCode,
+        QString(
+            "%1\n\n"
+            "Desktop validation workstation for OpenCV pipelines and ONNX inference.\n\n"
+            "OpenCV: %2\n"
+            "Qt: %3\n"
+            "DNN backends: %4")
+            .arg(
+                AppVersion::displayName(),
+                backendInfo.opencvVersion,
+                QString::fromLatin1(qVersion()),
+                backendInfo.availableBackends.join(", ")),
+        QString(
+            "%1\n\n"
+            "面向 OpenCV 流程与 ONNX 推理的桌面验证工作站。\n\n"
+            "OpenCV: %2\n"
+            "Qt: %3\n"
+            "DNN 后端: %4")
+            .arg(
+                AppVersion::displayName(),
+                backendInfo.opencvVersion,
+                QString::fromLatin1(qVersion()),
+                backendInfo.availableBackends.join(", "))
+    );
+
+    QMessageBox::about(
+        this,
+        localizedText(m_appSettings.languageCode, "About CVVerify", QStringLiteral("关于 CVVerify")),
+        aboutText);
+}
+
+void MainWindow::exportPipelineSnapshot()
+{
+    if (m_pipelineSteps.empty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Pipeline is empty",
+            QStringLiteral("流程为空")
+        ));
+        return;
+    }
+
+    const QString initialDirectory = m_appSettings.defaultExportDirectory.isEmpty()
+        ? QDir::currentPath()
+        : m_appSettings.defaultExportDirectory;
+    const QString outputDir = QFileDialog::getExistingDirectory(
+        this,
+        localizedText(m_appSettings.languageCode, "Export Pipeline Snapshot", QStringLiteral("导出流程快照")),
+        initialDirectory
+    );
+    if (outputDir.isEmpty()) {
+        return;
+    }
+
+    const QString filePath = QDir(outputDir).filePath(
+        QStringLiteral("pipeline_snapshot_%1.json")
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"))));
+    QString errorMessage;
+    if (!PipelineJsonSerializer::saveToFile(buildPipelineDefinition(), filePath, &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Exported pipeline snapshot: %1").arg(filePath),
+        QStringLiteral("已导出流程快照: %1").arg(filePath)
+    ));
+}
+
+void MainWindow::exportAppConfigSnapshot()
+{
+    const QString initialDirectory = m_appSettings.defaultExportDirectory.isEmpty()
+        ? QDir::currentPath()
+        : m_appSettings.defaultExportDirectory;
+    const QString outputDir = QFileDialog::getExistingDirectory(
+        this,
+        localizedText(m_appSettings.languageCode, "Export App Config Snapshot", QStringLiteral("导出应用配置快照")),
+        initialDirectory
+    );
+    if (outputDir.isEmpty()) {
+        return;
+    }
+
+    QJsonObject preview;
+    preview.insert("maxFps", m_appSettings.maxPreviewFps);
+    preview.insert("allowFrameSkip", m_appSettings.allowFrameSkip);
+    preview.insert("previewScale", m_appSettings.previewScale);
+    preview.insert("frameStep", m_appSettings.previewFrameStep);
+
+    QJsonObject task;
+    task.insert("offlineVideoStartFrame", m_appSettings.offlineVideoStartFrame);
+    task.insert("offlineVideoEndFrame", m_appSettings.offlineVideoEndFrame);
+
+    QJsonObject dnn;
+    dnn.insert("backend", m_appSettings.dnnBackend);
+
+    QJsonObject exportObject;
+    exportObject.insert("videoSideBySide", m_appSettings.exportVideoSideBySide);
+
+    QJsonObject ui;
+    ui.insert("showWelcomeGuide", m_appSettings.showWelcomeGuide);
+
+    QJsonArray recentMedia;
+    for (const QString& path : m_appSettings.recentMediaFiles) {
+        recentMedia.append(path);
+    }
+
+    QJsonArray recentProjects;
+    for (const QString& path : m_appSettings.recentProjectFiles) {
+        recentProjects.append(path);
+    }
+
+    QJsonObject root;
+    root.insert("appVersion", AppVersion::applicationVersion());
+    root.insert("exportedAt", QDateTime::currentDateTime().toString(Qt::ISODate));
+    root.insert("languageCode", m_appSettings.languageCode);
+    root.insert("defaultExportDirectory", m_appSettings.defaultExportDirectory);
+    root.insert("autoOpenExportDirectory", m_appSettings.autoOpenExportDirectory);
+    root.insert("maxRecentMediaFiles", m_appSettings.maxRecentMediaFiles);
+    root.insert("recentMediaFiles", recentMedia);
+    root.insert("recentProjectFiles", recentProjects);
+    root.insert("preview", preview);
+    root.insert("task", task);
+    root.insert("dnn", dnn);
+    root.insert("export", exportObject);
+    root.insert("ui", ui);
+
+    const QString filePath = QDir(outputDir).filePath(
+        QStringLiteral("app_config_snapshot_%1.json")
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"))));
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Failed to write app config snapshot: %1").arg(filePath),
+            QStringLiteral("写入应用配置快照失败: %1").arg(filePath)
+        ));
+        return;
+    }
+
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    file.close();
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Exported app config snapshot: %1").arg(filePath),
+        QStringLiteral("已导出应用配置快照: %1").arg(filePath)
+    ));
+}
+
+void MainWindow::showWelcomeGuideIfNeeded()
+{
+    if (!m_appSettings.showWelcomeGuide) {
+        return;
+    }
+
+    m_appSettings.showWelcomeGuide = false;
+    AppSettingsStore::save(m_appSettings);
+    presentQuickStartGuideDialog();
+}
+
+void MainWindow::presentQuickStartGuideDialog()
+{
+    QDialog dialog(this);
+    dialog.setObjectName("quickStartGuideDialog");
+    dialog.setWindowTitle(localizedText(
+        m_appSettings.languageCode,
+        "Quick Start",
+        QStringLiteral("\u5feb\u901f\u5165\u95e8")
+    ));
+    dialog.resize(560, 480);
+
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setSpacing(10);
+
+    auto* guideText = new QTextBrowser(&dialog);
+    guideText->setObjectName("quickStartGuideText");
+    guideText->setOpenExternalLinks(false);
+    guideText->setReadOnly(true);
+    guideText->setPlainText(quickStartGuideText(m_appSettings.languageCode));
+    layout->addWidget(guideText, 1);
+
+    auto* buttons = new QDialogButtonBox(&dialog);
+    QPushButton* demoButton = buttons->addButton(
+        localizedText(m_appSettings.languageCode, "Load Demo Project", QStringLiteral("\u52a0\u8f7d\u6f14\u793a\u9879\u76ee")),
+        QDialogButtonBox::ActionRole);
+    buttons->addButton(QDialogButtonBox::Close);
+    layout->addWidget(buttons);
+
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
+    connect(demoButton, &QPushButton::clicked, &dialog, [this, &dialog] {
+        loadSampleProject(QStringLiteral("samples/projects/demo_project.json"));
+        dialog.accept();
+    });
+
+    dialog.exec();
 }
 
 void MainWindow::addOperatorToPipeline(const QString& operatorId)
@@ -1623,7 +3012,7 @@ void MainWindow::addOperatorToPipeline(const QString& operatorId)
         return;
     }
 
-    auto step = m_operatorRegistry.create(operatorId);
+    auto step = ApplicationContext::instance().operatorRegistry().create(operatorId);
     if (!step) {
         statusBar()->showMessage(QString("Failed to create operator: %1").arg(operatorId));
         return;
@@ -1642,7 +3031,7 @@ void MainWindow::addOperatorToPipeline(const QString& operatorId)
     setPreviewMode(PreviewMode::FullPipeline);
     rebuildPipelineStrip();
     updateEmbeddedWorkbenchState();
-    rerunPreview();
+    QTimer::singleShot(0, this, [this] { rerunPreview(); });
 }
 
 bool MainWindow::hasSelectedMedia() const
@@ -1656,19 +3045,11 @@ bool MainWindow::ensureMediaSelectedForOperatorAdd()
         return true;
     }
 
-    QMessageBox::information(
-        this,
-        localizedText(
-            m_appSettings.languageCode,
-            "Add Operator",
-            QStringLiteral("\u6dfb\u52a0\u7b97\u5b50")
-        ),
-        localizedText(
-            m_appSettings.languageCode,
-            "Please select an image or video first",
-            QStringLiteral("\u8bf7\u5148\u9009\u62e9\u56fe\u7247\u6216\u89c6\u9891")
-        )
-    );
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        "Please select an image or video first",
+        QStringLiteral("\u8bf7\u5148\u9009\u62e9\u56fe\u7247\u6216\u89c6\u9891")
+    ));
     return false;
 }
 
@@ -1920,10 +3301,18 @@ void MainWindow::rerunPreview()
 
         FramePacket preview = m_currentFrame;
         preview.workingMat = preview.originalMat.clone();
+        preview.sidecarMat.release();
+        preview.sidecarKind.clear();
+        if (m_previewScale < 0.99) {
+            preview.workingMat = applyPreviewScale(preview.workingMat, m_previewScale);
+        }
 
         if (m_sourceCanvasView) {
             m_sourceCanvasView->setImage(OpenCvQtImageConverter::toQImage(m_currentFrame.originalMat));
             refreshSourceCanvasOverlay();
+        }
+        if (m_previewCanvasHost) {
+            m_previewCanvasHost->setSourceImage(OpenCvQtImageConverter::toQImage(m_currentFrame.originalMat));
         }
 
         DetectionFrameResult frameResult;
@@ -1960,14 +3349,18 @@ void MainWindow::rerunPreview()
             return;
         }
 
-        if (!frameResult.boxes.isEmpty()) {
-            DetectionRenderComposer::drawDetections(preview.workingMat, frameResult);
+        if (!frameResult.boxes.isEmpty() || preview.artifacts.contains("classification_top_k")) {
+            DetectionRenderComposer::applyModelArtifactsOverlay(
+                preview.workingMat,
+                frameResult,
+                preview.artifacts);
         }
 
         const QVariant detectionCountVariant = preview.annotations.value("detections");
         const int detectionCount = detectionCountVariant.isValid()
             ? detectionCountVariant.toInt()
             : frameResult.boxes.size();
+        const QString modelSummary = modelResultSummary(preview, frameResult);
 
         if (detectionCountVariant.isValid()) {
             statusBar()->showMessage(localizedText(
@@ -1975,29 +3368,39 @@ void MainWindow::rerunPreview()
                 QString("Detection preview complete: %1 boxes").arg(detectionCount),
                 QStringLiteral("\u68c0\u6d4b\u9884\u89c8\u5b8c\u6210\uff1a%1 \u4e2a\u6846").arg(detectionCount)
             ));
-        } else if (m_currentMediaInfo.kind == MediaSourceKind::VideoFile) {
+        } else if (!modelSummary.isEmpty()) {
+            statusBar()->showMessage(modelSummary);
+        } else if (m_currentMediaInfo.kind == MediaSourceKind::VideoFile
+            || m_currentMediaInfo.kind == MediaSourceKind::ImageFolder) {
             statusBar()->showMessage(localizedText(
                 m_appSettings.languageCode,
-                QString("Previewing video frame %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount)),
-                QStringLiteral("\u6b63\u5728\u9884\u89c8\u89c6\u9891\u5e27 %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount))
+                QString("Previewing frame %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount)),
+                QStringLiteral("\u6b63\u5728\u9884\u89c8\u5e27 %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount))
             ));
         }
 
         const QString mediaName = QFileInfo(m_currentFrame.sourceId).fileName();
-        const QString mediaKind = m_currentMediaInfo.kind == MediaSourceKind::VideoFile
-            ? localizedText(m_appSettings.languageCode, "Video", QStringLiteral("\u89c6\u9891"))
-            : localizedText(m_appSettings.languageCode, "Image", QStringLiteral("\u56fe\u7247"));
-        const QString framePart = m_currentMediaInfo.kind == MediaSourceKind::VideoFile
+        QString mediaKind;
+        if (m_currentMediaInfo.kind == MediaSourceKind::VideoFile) {
+            mediaKind = localizedText(m_appSettings.languageCode, "Video", QStringLiteral("\u89c6\u9891"));
+        } else if (m_currentMediaInfo.kind == MediaSourceKind::ImageFolder) {
+            mediaKind = localizedText(m_appSettings.languageCode, "Image Folder", QStringLiteral("\u56fe\u7247\u6587\u4ef6\u5939"));
+        } else {
+            mediaKind = localizedText(m_appSettings.languageCode, "Image", QStringLiteral("\u56fe\u7247"));
+        }
+        const QString framePart = (m_currentMediaInfo.kind == MediaSourceKind::VideoFile
+            || m_currentMediaInfo.kind == MediaSourceKind::ImageFolder)
             ? localizedText(
                 m_appSettings.languageCode,
                 QString("Frame %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount)),
                 QStringLiteral("\u5e27 %1 / %2").arg(m_currentVideoFrameIndex + 1).arg(std::max(1, m_currentMediaInfo.frameCount)))
             : localizedText(m_appSettings.languageCode, "Single Frame", QStringLiteral("\u5355\u5e27"));
-        const QString detectionPart = localizedText(
-            m_appSettings.languageCode,
-            QString("Detections: %1").arg(detectionCount),
-            QStringLiteral("\u68c0\u6d4b\u6570\uff1a%1").arg(detectionCount)
-        );
+        const QString detectionPart = modelSummary.isEmpty()
+            ? localizedText(
+                m_appSettings.languageCode,
+                QString("Detections: %1").arg(detectionCount),
+                QStringLiteral("\u68c0\u6d4b\u6570\uff1a%1").arg(detectionCount))
+            : modelSummary;
         const QString stepPart = localizedText(
             m_appSettings.languageCode,
             QString("Pipeline Steps: %1").arg(m_pipelineSteps.size()),
@@ -2022,6 +3425,62 @@ void MainWindow::rerunPreview()
 
         if (m_canvasView) {
             m_canvasView->setImage(OpenCvQtImageConverter::toQImage(preview.workingMat));
+        }
+        if (m_previewCanvasHost) {
+            const QImage sourceImage = OpenCvQtImageConverter::toQImage(m_currentFrame.originalMat);
+            const QImage resultImage = OpenCvQtImageConverter::toQImage(preview.workingMat);
+            if (m_comparisonBaselineActive
+                && !m_comparisonBaselineMat.empty()
+                && m_previewViewMode == PreviewViewMode::Wipe) {
+                m_previewCanvasHost->setSourceImage(OpenCvQtImageConverter::toQImage(m_comparisonBaselineMat));
+                m_previewCanvasHost->setResultImage(resultImage);
+            } else {
+                m_previewCanvasHost->setSourceImage(sourceImage);
+                m_previewCanvasHost->setResultImage(resultImage);
+            }
+            if (!frameResult.boxes.isEmpty()) {
+                cv::Mat overlayMat = preview.workingMat.clone();
+                DetectionRenderComposer::applyModelArtifactsOverlay(
+                    overlayMat,
+                    frameResult,
+                    preview.artifacts);
+                m_previewCanvasHost->setOverlayImage(OpenCvQtImageConverter::toQImage(overlayMat));
+            } else if (preview.hasSidecarFrame() && preview.sidecarKind == "histogram") {
+                m_previewCanvasHost->setOverlayImage(OpenCvQtImageConverter::toQImage(preview.sidecarMat));
+            } else {
+                m_previewCanvasHost->setOverlayImage(QImage());
+            }
+            if (m_comparisonBaselineActive
+                && !m_comparisonBaselineMat.empty()
+                && m_previewViewMode == PreviewViewMode::FourGrid) {
+                m_previewCanvasHost->setIntermediateImage(OpenCvQtImageConverter::toQImage(m_comparisonBaselineMat));
+            } else if (preview.hasSidecarFrame()) {
+                m_previewCanvasHost->setIntermediateImage(OpenCvQtImageConverter::toQImage(preview.sidecarMat));
+            } else {
+                m_previewCanvasHost->setIntermediateImage(resultImage);
+            }
+        }
+        if (m_statisticsPanel) {
+            m_statisticsPanel->setFrameMetrics(preview.metrics);
+            m_statisticsPanel->setTimingSummary(DiagnosticsLog::instance().summaryText());
+        }
+        if (m_diagnosticsPanel) {
+            m_diagnosticsPanel->refresh();
+        }
+        if (m_statusDetailsLabel) {
+            m_statusDetailsLabel->setText(localizedText(
+                m_appSettings.languageCode,
+                QString("Size: %1x%2 | Frame: %3/%4")
+                    .arg(m_currentMediaInfo.width)
+                    .arg(m_currentMediaInfo.height)
+                    .arg(m_currentVideoFrameIndex + 1)
+                    .arg(std::max(1, m_currentMediaInfo.frameCount)),
+                QStringLiteral("\u5c3a\u5bf8: %1x%2 | \u5e27: %3/%4")
+                    .arg(m_currentMediaInfo.width)
+                    .arg(m_currentMediaInfo.height)
+                    .arg(m_currentVideoFrameIndex + 1)
+                    .arg(std::max(1, m_currentMediaInfo.frameCount))
+            ));
         }
         return;
     }
@@ -2072,8 +3531,19 @@ void MainWindow::showSystemSettings()
         return;
     }
 
+    const AppSettings previousSettings = m_appSettings;
     m_appSettings = dialog.settings();
+    m_appSettings.recentMediaFiles = previousSettings.recentMediaFiles;
+    m_appSettings.recentProjectFiles = previousSettings.recentProjectFiles;
+    if (dialog.clearRecentFilesRequested()) {
+        m_appSettings.recentMediaFiles.clear();
+        m_appSettings.recentProjectFiles.clear();
+    }
+    trimRecentFileLists();
     AppSettingsStore::save(m_appSettings);
+    syncPreviewSettingsFromAppSettings();
+    rebuildRecentMediaMenu();
+    rebuildRecentProjectMenu();
     setLanguage(m_appSettings.languageCode);
 }
 
@@ -2146,6 +3616,12 @@ void MainWindow::setLanguage(const QString& languageCode)
         if (m_exportResultsPanel) {
             m_exportResultsPanel->setLanguage(languageCode);
         }
+        if (m_taskConsolePanel) {
+            m_taskConsolePanel->setLanguage(languageCode);
+        }
+        if (m_timelineWidget) {
+            m_timelineWidget->setLanguage(languageCode);
+        }
         if (m_operatorParameterDialog) {
             m_operatorParameterDialog->setLanguage(languageCode);
         }
@@ -2207,7 +3683,7 @@ void MainWindow::openOperatorParameterDialog(const QString& operatorId, const QS
         return;
     }
 
-    auto step = m_operatorRegistry.create(operatorId);
+    auto step = ApplicationContext::instance().operatorRegistry().create(operatorId);
     if (!step) {
         statusBar()->showMessage(QString("Failed to create operator: %1").arg(operatorId));
         return;
@@ -2226,8 +3702,8 @@ void MainWindow::exportDetectionImages()
     if (m_activeDetectionModelPath.isEmpty()) {
         statusBar()->showMessage(localizedText(
             m_appSettings.languageCode,
-            "Import a YOLO model before exporting detection results",
-            QStringLiteral("请先导入 YOLO 模型，再导出检测结果")
+            "Import an ONNX model before exporting detection results",
+            QStringLiteral("请先导入 ONNX 模型，再导出检测结果")
         ));
         return;
     }
@@ -2329,11 +3805,13 @@ void MainWindow::exportDetectionImages()
 
 void MainWindow::exportDetectionVideo()
 {
-    if (m_currentMediaInfo.kind != MediaSourceKind::VideoFile || m_currentMediaInfo.sourceId.isEmpty()) {
+    if ((m_currentMediaInfo.kind != MediaSourceKind::VideoFile
+            && m_currentMediaInfo.kind != MediaSourceKind::ImageFolder)
+        || m_currentMediaInfo.sourceId.isEmpty()) {
         statusBar()->showMessage(localizedText(
             m_appSettings.languageCode,
-            "Load a video before exporting detection video",
-            QStringLiteral("请先加载视频，再导出检测视频")
+            "Load a video or image folder before exporting detection video",
+            QStringLiteral("请先加载视频或图片文件夹，再导出检测视频")
         ));
         return;
     }
@@ -2341,8 +3819,8 @@ void MainWindow::exportDetectionVideo()
     if (m_activeDetectionModelPath.isEmpty()) {
         statusBar()->showMessage(localizedText(
             m_appSettings.languageCode,
-            "Import a YOLO model before exporting detection video",
-            QStringLiteral("请先导入 YOLO 模型，再导出检测视频")
+            "Import an ONNX model before exporting detection video",
+            QStringLiteral("请先导入 ONNX 模型，再导出检测视频")
         ));
         return;
     }
@@ -2365,7 +3843,147 @@ void MainWindow::exportDetectionVideo()
         m_activeDetectionModel
     );
 
+    const int frameCount = std::max(1, m_currentMediaInfo.frameCount);
+    TaskScheduler& taskScheduler = ApplicationContext::instance().taskScheduler();
+    if (taskScheduler.isRunning()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Another background task is already running",
+            QStringLiteral("已有后台任务正在运行")
+        ));
+        return;
+    }
+
+    const QString inputVideoPath = m_currentMediaInfo.kind == MediaSourceKind::VideoFile
+        ? m_currentMediaInfo.sourceId
+        : QString();
+    const QString languageCode = m_appSettings.languageCode;
+
+    auto finishExport = [this, outputDir, frameCount, languageCode](bool success, const QString& errorMessage) {
+        if (!success) {
+            statusBar()->showMessage(errorMessage.isEmpty()
+                ? localizedText(languageCode, "Video export failed", QStringLiteral("视频导出失败"))
+                : errorMessage);
+            return;
+        }
+
+        m_appSettings.defaultExportDirectory = outputDir;
+        AppSettingsStore::save(m_appSettings);
+
+        statusBar()->showMessage(localizedText(
+            languageCode,
+            QString("Exported detection video to: %1").arg(outputDir),
+            QStringLiteral("已导出检测视频到: %1").arg(outputDir)
+        ));
+
+        ExportResultSummary summary;
+        summary.title = localizedText(languageCode, "Video Export", QStringLiteral("视频导出"));
+        summary.summaryText = localizedText(
+            languageCode,
+            QString("Exported detection video with %1 frame(s)").arg(frameCount),
+            QStringLiteral("已导出包含 %1 帧的视频检测结果").arg(frameCount)
+        );
+        summary.outputDirectory = outputDir;
+        summary.artifacts = QStringList()
+            << (m_appSettings.exportVideoSideBySide
+                ? exportFileNameFromSource(m_currentMediaInfo.sourceId, "_side_by_side.avi")
+                : exportFileNameFromSource(m_currentMediaInfo.sourceId, "_overlay.avi"))
+            << exportFileNameFromSource(m_currentMediaInfo.sourceId, ".json")
+            << exportFileNameFromSource(m_currentMediaInfo.sourceId, ".csv")
+            << "pipeline_snapshot.json"
+            << "model_config_snapshot.json";
+        recordExportSummary(summary);
+
+        if (m_appSettings.autoOpenExportDirectory) {
+            openExportOutputDirectory(outputDir);
+        }
+    };
+
+    if (frameCount > 1 && m_currentMediaInfo.kind == MediaSourceKind::VideoFile) {
+        TaskDefinition task;
+        task.taskId = QString("offline_video_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+        task.displayName = localizedText(languageCode, "Offline Video Export", QStringLiteral("离线视频导出"));
+        task.kind = TaskKind::OfflineVideo;
+        task.state = TaskState::Running;
+        task.createdAt = QDateTime::currentDateTime();
+        task.outputDirectory = outputDir;
+        recordTaskHistory(task);
+
+        DetectionExportService::VideoExportOptions videoOptions;
+        videoOptions.startFrame = qMax(0, m_appSettings.offlineVideoStartFrame);
+        videoOptions.endFrame = m_appSettings.offlineVideoEndFrame;
+        videoOptions.sideBySide = m_appSettings.exportVideoSideBySide;
+
+        const bool started = taskScheduler.startTask(TaskKind::OfflineVideo, 1, [this, inputVideoPath, outputDir, exportContext, videoOptions](
+            int current,
+            int total,
+            bool* cancelRequestedPtr,
+            bool* pauseRequested,
+            QString* errorMessage) -> bool {
+            Q_UNUSED(current)
+            Q_UNUSED(total)
+
+            return DetectionExportService::exportVideoResult(
+                inputVideoPath,
+                outputDir,
+                [this, cancelRequestedPtr, pauseRequested](
+                    FramePacket* frame,
+                    DetectionFrameResult* result,
+                    QString* processErrorMessage) -> bool {
+                    if (cancelRequestedPtr && *cancelRequestedPtr) {
+                        if (processErrorMessage) {
+                            *processErrorMessage = "Export cancelled";
+                        }
+                        return false;
+                    }
+
+                    while (pauseRequested && *pauseRequested && cancelRequestedPtr && !*cancelRequestedPtr) {
+                        QThread::msleep(50);
+                    }
+
+                    if (!frame) {
+                        if (processErrorMessage) {
+                            *processErrorMessage = "Video frame state is invalid";
+                        }
+                        return false;
+                    }
+
+                    return processFrame(frame, result, processErrorMessage);
+                },
+                errorMessage,
+                exportContext,
+                videoOptions
+            );
+        });
+
+        if (!started) {
+            statusBar()->showMessage(localizedText(
+                m_appSettings.languageCode,
+                "Failed to start background video export",
+                QStringLiteral("无法启动后台视频导出")
+            ));
+            return;
+        }
+
+        auto exportConnection = std::make_shared<QMetaObject::Connection>();
+        *exportConnection = connect(
+            &ApplicationContext::instance().taskScheduler(),
+            &TaskScheduler::taskFinished,
+            this,
+            [finishExport, exportConnection](bool success) {
+                QObject::disconnect(*exportConnection);
+                const TaskProgress progress = ApplicationContext::instance().taskScheduler().currentProgress();
+                finishExport(success, progress.errorMessage);
+            });
+        return;
+    }
+
     QString errorMessage;
+    DetectionExportService::VideoExportOptions videoOptions;
+    videoOptions.startFrame = qMax(0, m_appSettings.offlineVideoStartFrame);
+    videoOptions.endFrame = m_appSettings.offlineVideoEndFrame;
+    videoOptions.sideBySide = m_appSettings.exportVideoSideBySide;
+
     const bool success = DetectionExportService::exportVideoResult(
         m_currentMediaInfo.sourceId,
         outputDir,
@@ -2385,42 +4003,11 @@ void MainWindow::exportDetectionVideo()
             return processFrame(frame, result, processErrorMessage);
         },
         &errorMessage,
-        exportContext
+        exportContext,
+        videoOptions
     );
 
-    if (!success) {
-        statusBar()->showMessage(errorMessage);
-        return;
-    }
-
-    m_appSettings.defaultExportDirectory = outputDir;
-    AppSettingsStore::save(m_appSettings);
-
-    statusBar()->showMessage(localizedText(
-        m_appSettings.languageCode,
-        QString("Exported detection video to: %1").arg(outputDir),
-        QStringLiteral("已导出检测视频到: %1").arg(outputDir)
-    ));
-
-    ExportResultSummary summary;
-    summary.title = localizedText(m_appSettings.languageCode, "Video Export", QStringLiteral("视频导出"));
-    summary.summaryText = localizedText(
-        m_appSettings.languageCode,
-        QString("Exported detection video with %1 frame(s)").arg(std::max(1, m_currentMediaInfo.frameCount)),
-        QStringLiteral("已导出包含 %1 帧的视频检测结果").arg(std::max(1, m_currentMediaInfo.frameCount))
-    );
-    summary.outputDirectory = outputDir;
-    summary.artifacts = QStringList()
-        << exportFileNameFromSource(m_currentMediaInfo.sourceId, "_overlay.avi")
-        << exportFileNameFromSource(m_currentMediaInfo.sourceId, ".json")
-        << exportFileNameFromSource(m_currentMediaInfo.sourceId, ".csv")
-        << "pipeline_snapshot.json"
-        << "model_config_snapshot.json";
-    recordExportSummary(summary);
-
-    if (m_appSettings.autoOpenExportDirectory) {
-        openExportOutputDirectory(outputDir);
-    }
+    finishExport(success, errorMessage);
 }
 
 void MainWindow::openExportOutputDirectory(const QString& outputDirectory)
@@ -2451,15 +4038,21 @@ bool MainWindow::applyPipelineSteps(FramePacket* frame, QString* errorMessage) c
         return false;
     }
 
-    if (!m_pipelineSteps.empty()) {
-        PipelineEngine engine;
-        std::vector<std::shared_ptr<IPipelineStep>> steps;
-        steps.reserve(m_pipelineSteps.size());
-        for (const PipelineStepState& state : m_pipelineSteps) {
-            steps.push_back(state.step);
+    DiagnosticsLog::instance().clearStepTimings();
+
+    for (const PipelineStepState& state : m_pipelineSteps) {
+        if (!state.step) {
+            continue;
         }
-        engine.setSteps(std::move(steps));
-        const StepResult result = engine.run(*frame, RunContext{true});
+
+        QElapsedTimer timer;
+        timer.start();
+        const StepResult result = state.step->execute(*frame, RunContext{true});
+        DiagnosticsLog::instance().recordStepTiming(
+            state.step->id(),
+            state.displayName,
+            timer.elapsed()
+        );
         if (!result.success) {
             if (errorMessage) {
                 *errorMessage = result.errorMessage;
@@ -2492,21 +4085,27 @@ bool MainWindow::runDetectionOnCurrentFrame(FramePacket* previewFrame, Detection
 
     if (m_activeDetectionModelPath.isEmpty()) {
         if (errorMessage) {
-            *errorMessage = "No active YOLO model is available";
+            *errorMessage = "No active ONNX model is available";
         }
         return false;
     }
 
-    auto detectionStep = std::make_shared<YoloDetectionStep>(
+    auto modelStep = OnnxModelStepFactory::createStep(
         m_activeDetectionModel,
         m_activeDetectionModelPath,
         m_activeDetectionLabels
     );
-
-    const StepResult detectionStepResult = detectionStep->execute(*previewFrame, RunContext{true});
-    if (!detectionStepResult.success) {
+    if (!modelStep) {
         if (errorMessage) {
-            *errorMessage = detectionStepResult.errorMessage;
+            *errorMessage = "Failed to create ONNX model step";
+        }
+        return false;
+    }
+
+    const StepResult modelStepResult = modelStep->execute(*previewFrame, RunContext{true});
+    if (!modelStepResult.success) {
+        if (errorMessage) {
+            *errorMessage = modelStepResult.errorMessage;
         }
         return false;
     }
@@ -2724,24 +4323,23 @@ void MainWindow::loadPipelineFromFile()
         return;
     }
 
-    const PipelineLoadResult result = PipelineJsonSerializer::loadFromFile(filePath);
-    if (!result.success) {
-        statusBar()->showMessage(result.errorMessage);
-        return;
-    }
+    loadPipelineFromPath(filePath);
+}
 
+bool MainWindow::applyPipelineDefinition(const PipelineDefinition& definition, const QString& sourceLabel)
+{
     std::vector<PipelineStepState> loadedSteps;
-    loadedSteps.reserve(static_cast<std::size_t>(result.definition.steps.size()));
+    loadedSteps.reserve(static_cast<std::size_t>(definition.steps.size()));
 
-    for (const PipelineStepDefinition& stepDefinition : result.definition.steps) {
-        std::shared_ptr<IPipelineStep> step = m_operatorRegistry.create(stepDefinition.stepId);
+    for (const PipelineStepDefinition& stepDefinition : definition.steps) {
+        std::shared_ptr<IPipelineStep> step = ApplicationContext::instance().operatorRegistry().create(stepDefinition.stepId);
         if (!step) {
             statusBar()->showMessage(localizedText(
                 m_appSettings.languageCode,
                 QString("Unknown pipeline step: %1").arg(stepDefinition.stepId),
                 QStringLiteral("未知流程步骤: %1").arg(stepDefinition.stepId)
             ));
-            return;
+            return false;
         }
 
         step->setParameterValues(stepDefinition.parameters);
@@ -2771,10 +4369,102 @@ void MainWindow::loadPipelineFromFile()
     updateEmbeddedWorkbenchState();
     statusBar()->showMessage(localizedText(
         m_appSettings.languageCode,
-        QString("Loaded pipeline: %1").arg(filePath),
-        QStringLiteral("已加载流程: %1").arg(filePath)
+        QString("Loaded pipeline: %1").arg(sourceLabel),
+        QStringLiteral("已加载流程: %1").arg(sourceLabel)
     ));
     rerunPreview();
+    return true;
+}
+
+void MainWindow::loadSamplePipeline(const QString& resourceRelativePath)
+{
+    const QString filePath = PlatformPaths::resolveResourcePath(resourceRelativePath);
+    if (!QFileInfo::exists(filePath)) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Sample pipeline not found: %1").arg(resourceRelativePath),
+            QStringLiteral("未找到示例流程: %1").arg(resourceRelativePath)
+        ));
+        return;
+    }
+
+    const PipelineLoadResult result = PipelineJsonSerializer::loadFromFile(filePath);
+    if (!result.success) {
+        statusBar()->showMessage(result.errorMessage);
+        return;
+    }
+
+    applyPipelineDefinition(result.definition, filePath);
+}
+
+void MainWindow::loadSampleProject(const QString& resourceRelativePath)
+{
+    const QString filePath = PlatformPaths::resolveResourcePath(resourceRelativePath);
+    if (!QFileInfo::exists(filePath)) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Sample project not found: %1").arg(resourceRelativePath),
+            QStringLiteral("未找到示例项目: %1").arg(resourceRelativePath)
+        ));
+        return;
+    }
+
+    const ProjectLoadResult result = ProjectService::loadFromFile(filePath);
+    if (!result.success) {
+        statusBar()->showMessage(result.errorMessage);
+        return;
+    }
+
+    m_currentProjectFilePath = filePath;
+    recordRecentProject(filePath);
+    applyProjectDefinition(result.project);
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Loaded sample project: %1").arg(filePath),
+        QStringLiteral("已加载示例项目: %1").arg(filePath)
+    ));
+}
+
+void MainWindow::populateSamplePipelineMenu()
+{
+    if (!m_loadSamplePipelineMenu) {
+        return;
+    }
+
+    m_loadSamplePipelineMenu->clear();
+    const QString languageCode = m_appSettings.languageCode;
+    for (const SampleResourceEntry& entry : kSamplePipelines) {
+        QAction* action = m_loadSamplePipelineMenu->addAction(localizedText(
+            languageCode,
+            QString::fromUtf8(entry.englishLabel),
+            QString::fromUtf8(entry.chineseLabel)
+        ));
+        const QString relativePath = QString::fromUtf8(entry.relativePath);
+        connect(action, &QAction::triggered, this, [this, relativePath] {
+            loadSamplePipeline(relativePath);
+        });
+    }
+}
+
+void MainWindow::populateSampleProjectMenu()
+{
+    if (!m_loadSampleProjectMenu) {
+        return;
+    }
+
+    m_loadSampleProjectMenu->clear();
+    const QString languageCode = m_appSettings.languageCode;
+    for (const SampleResourceEntry& entry : kSampleProjects) {
+        QAction* action = m_loadSampleProjectMenu->addAction(localizedText(
+            languageCode,
+            QString::fromUtf8(entry.englishLabel),
+            QString::fromUtf8(entry.chineseLabel)
+        ));
+        const QString relativePath = QString::fromUtf8(entry.relativePath);
+        connect(action, &QAction::triggered, this, [this, relativePath] {
+            loadSampleProject(relativePath);
+        });
+    }
 }
 
 PipelineDefinition MainWindow::buildPipelineDefinition() const
@@ -2931,10 +4621,14 @@ void MainWindow::createMenus()
 {
     m_mediaMenu = menuBar()->addMenu("Media");
     m_mediaMenu->menuAction()->setObjectName("mediaMenuAction");
+    m_projectMenu = menuBar()->addMenu("Project");
+    m_projectMenu->menuAction()->setObjectName("projectMenuAction");
     m_pipelineMenu = menuBar()->addMenu("Pipeline");
     m_pipelineMenu->menuAction()->setObjectName("pipelineMenuAction");
     m_exportMenu = menuBar()->addMenu("Export");
     m_exportMenu->menuAction()->setObjectName("exportMenuAction");
+    m_viewMenu = menuBar()->addMenu("View");
+    m_viewMenu->menuAction()->setObjectName("viewMenuAction");
     m_previewMenu = menuBar()->addMenu("Preview");
     m_previewMenu->menuAction()->setObjectName("previewMenuAction");
     m_operatorMenu = menuBar()->addMenu("Operators");
@@ -2951,8 +4645,28 @@ void MainWindow::createMenus()
     m_mediaMenu->setDefaultAction(m_showMediaWorkbenchAction);
     m_mediaMenu->addSeparator();
     m_openImageAction = m_mediaMenu->addAction("Open Image", this, [this] { loadImageFile(); });
+    m_openImageAction->setObjectName("openImageAction");
     m_openVideoAction = m_mediaMenu->addAction("Open Video", this, [this] { loadVideoFile(); });
-    m_importYoloModelAction = m_mediaMenu->addAction("Import YOLO Model", this, [this] { importYoloModel(); });
+    m_openVideoAction->setObjectName("openVideoAction");
+    m_openImageFolderAction = m_mediaMenu->addAction("Open Image Folder", this, [this] { loadImageFolder(); });
+    m_openImageFolderAction->setObjectName("openImageFolderAction");
+    m_openRecentMenu = m_mediaMenu->addMenu("Open Recent");
+    m_openRecentMenu->menuAction()->setObjectName("openRecentMenuAction");
+    m_importYoloModelAction = m_mediaMenu->addAction("Import ONNX Model", this, [this] { importYoloModel(); });
+    m_importYoloModelAction->setObjectName("importYoloModelAction");
+    m_editModelConfigAction = m_mediaMenu->addAction("Edit Model Configuration", this, [this] { editActiveModelConfig(); });
+    m_editModelConfigAction->setObjectName("editModelConfigAction");
+
+    m_saveProjectAction = m_projectMenu->addAction("Save Project", this, [this] { saveProjectToFile(); });
+    m_saveProjectAction->setObjectName("saveProjectAction");
+    m_loadProjectAction = m_projectMenu->addAction("Load Project", this, [this] { loadProjectFromFile(); });
+    m_loadProjectAction->setObjectName("loadProjectAction");
+    m_openRecentProjectMenu = m_projectMenu->addMenu("Open Recent Project");
+    m_openRecentProjectMenu->setObjectName("openRecentProjectMenu");
+    m_openRecentProjectMenu->menuAction()->setObjectName("openRecentProjectMenuAction");
+    m_loadSampleProjectMenu = m_projectMenu->addMenu("Load Sample Project");
+    m_loadSampleProjectMenu->setObjectName("loadSampleProjectMenu");
+    populateSampleProjectMenu();
 
     m_showPipelineWorkbenchAction = m_pipelineMenu->addAction("Show Operator Workbench");
     m_showPipelineWorkbenchAction->setObjectName("showPipelineWorkbenchAction");
@@ -2975,6 +4689,10 @@ void MainWindow::createMenus()
     m_pipelineMenu->addSeparator();
     m_savePipelineAction = m_pipelineMenu->addAction("Save Pipeline", this, [this] { savePipelineToFile(); });
     m_loadPipelineAction = m_pipelineMenu->addAction("Load Pipeline", this, [this] { loadPipelineFromFile(); });
+    m_loadSamplePipelineMenu = m_pipelineMenu->addMenu("Load Sample Pipeline");
+    m_loadSamplePipelineMenu->setObjectName("loadSamplePipelineMenu");
+    populateSamplePipelineMenu();
+    m_addDetectionStepAction = m_pipelineMenu->addAction("Add Active Model Step", this, [this] { addActiveModelStepToPipeline(); });
 
     m_showExportResultsAction = m_exportMenu->addAction("Export Results", this, [this] { showExportResultsWorkbench(); });
     m_showExportResultsAction->setObjectName("showExportResultsAction");
@@ -2982,6 +4700,43 @@ void MainWindow::createMenus()
     m_exportMenu->addSeparator();
     m_exportDetectionImagesAction = m_exportMenu->addAction("Export Detection Images", this, [this] { exportDetectionImages(); });
     m_exportDetectionVideoAction = m_exportMenu->addAction("Export Detection Video", this, [this] { exportDetectionVideo(); });
+    m_exportBatchPipelineAction = m_exportMenu->addAction("Export Batch Pipeline", this, [this] { exportBatchPipeline(); });
+    m_exportPipelineSnapshotAction = m_exportMenu->addAction(
+        "Export Pipeline Snapshot",
+        this,
+        [this] { exportPipelineSnapshot(); });
+    m_exportAppConfigSnapshotAction = m_exportMenu->addAction(
+        "Export App Config Snapshot",
+        this,
+        [this] { exportAppConfigSnapshot(); });
+    m_exportComparisonAction = m_exportMenu->addAction("Export Comparison Image", this, [this] { exportComparisonResult(); });
+
+    m_dualViewAction = m_previewMenu->addAction("Dual View");
+    m_wipeViewAction = m_previewMenu->addAction("Wipe Comparison");
+    m_fourGridViewAction = m_previewMenu->addAction("Four Grid View");
+    m_dualViewAction->setCheckable(true);
+    m_wipeViewAction->setCheckable(true);
+    m_fourGridViewAction->setCheckable(true);
+    auto* viewModeGroup = new QActionGroup(this);
+    viewModeGroup->setExclusive(true);
+    viewModeGroup->addAction(m_dualViewAction);
+    viewModeGroup->addAction(m_wipeViewAction);
+    viewModeGroup->addAction(m_fourGridViewAction);
+    m_dualViewAction->setChecked(true);
+    connect(m_dualViewAction, &QAction::triggered, this, [this] { setPreviewViewMode(PreviewViewMode::Dual); });
+    connect(m_wipeViewAction, &QAction::triggered, this, [this] { setPreviewViewMode(PreviewViewMode::Wipe); });
+    connect(m_fourGridViewAction, &QAction::triggered, this, [this] { setPreviewViewMode(PreviewViewMode::FourGrid); });
+    m_previewMenu->addSeparator();
+    m_captureComparisonBaselineAction = m_previewMenu->addAction(
+        "Capture Comparison Baseline",
+        this,
+        [this] { captureComparisonBaseline(); });
+    m_clearComparisonBaselineAction = m_previewMenu->addAction(
+        "Clear Comparison Baseline",
+        this,
+        [this] { clearComparisonBaseline(); });
+    m_clearComparisonBaselineAction->setEnabled(false);
+    m_previewMenu->addSeparator();
 
     m_previewModeActionGroup = new QActionGroup(this);
     m_previewModeActionGroup->setExclusive(true);
@@ -3024,7 +4779,20 @@ void MainWindow::createMenus()
     connect(m_englishLanguageAction, &QAction::triggered, this, [this] { setLanguage("en"); });
     connect(m_chineseLanguageAction, &QAction::triggered, this, [this] { setLanguage("zh-CN"); });
 
-    const QList<OperatorDescriptor> descriptors = m_operatorRegistry.allOperators();
+    m_helpMenu = menuBar()->addMenu("Help");
+    m_helpMenu->menuAction()->setObjectName("helpMenuAction");
+    m_openQuickStartGuideAction = m_helpMenu->addAction(
+        "Quick Start",
+        this,
+        [this] { presentQuickStartGuideDialog(); });
+    m_openQuickStartGuideAction->setObjectName("openQuickStartGuideAction");
+    m_helpMenu->addSeparator();
+    m_aboutAction = m_helpMenu->addAction("About CVVerify", this, [this] { showAboutDialog(); });
+    m_aboutAction->setObjectName("aboutAction");
+
+    rebuildRecentMediaMenu();
+
+    const QList<OperatorDescriptor> descriptors = ApplicationContext::instance().operatorRegistry().allOperators();
     populateGroupedOperatorMenu(
         m_addOperatorMenu,
         descriptors,
@@ -3041,27 +4809,69 @@ void MainWindow::createMenus()
         [this](const OperatorDescriptor& descriptor) {
             addOperatorToPipeline(descriptor.id);
         });
+
+    setupKeyboardShortcuts();
+    rebuildRecentProjectMenu();
 }
 
 void MainWindow::rebuildMenuTexts()
 {
     {
         const QString languageCode = m_appSettings.languageCode;
-        const QList<OperatorDescriptor> descriptors = m_operatorRegistry.allOperators();
+        const QList<OperatorDescriptor> descriptors = ApplicationContext::instance().operatorRegistry().allOperators();
 
         if (m_mediaMenu) m_mediaMenu->setTitle(localizedText(languageCode, "Media", QStringLiteral("\u5a92\u4f53")));
+        if (m_projectMenu) m_projectMenu->setTitle(localizedText(languageCode, "Project", QStringLiteral("\u9879\u76ee")));
         if (m_pipelineMenu) m_pipelineMenu->setTitle(localizedText(languageCode, "Pipeline", QStringLiteral("\u6d41\u7a0b")));
         if (m_exportMenu) m_exportMenu->setTitle(localizedText(languageCode, "Export", QStringLiteral("\u5bfc\u51fa")));
+        if (m_viewMenu) m_viewMenu->setTitle(localizedText(languageCode, "View", QStringLiteral("\u89c6\u56fe")));
         if (m_previewMenu) m_previewMenu->setTitle(localizedText(languageCode, "Preview", QStringLiteral("\u9884\u89c8")));
         if (m_operatorMenu) m_operatorMenu->setTitle(localizedText(languageCode, "Operators", QStringLiteral("\u7b97\u5b50")));
         if (m_playbackMenu) m_playbackMenu->setTitle(localizedText(languageCode, "Playback", QStringLiteral("\u64ad\u653e")));
         if (m_settingsMenu) m_settingsMenu->setTitle(localizedText(languageCode, "Settings", QStringLiteral("\u8bbe\u7f6e")));
+        if (m_helpMenu) m_helpMenu->setTitle(localizedText(languageCode, "Help", QStringLiteral("\u5e2e\u52a9")));
         if (m_languageMenu) m_languageMenu->setTitle(localizedText(languageCode, "Language", QStringLiteral("\u8bed\u8a00")));
 
         if (m_showMediaWorkbenchAction) m_showMediaWorkbenchAction->setText(localizedText(languageCode, "Media & Model Workbench", QStringLiteral("\u5a92\u4f53\u4e0e\u6a21\u578b\u5de5\u4f5c\u53f0")));
         if (m_openImageAction) m_openImageAction->setText(localizedText(languageCode, "Open Image", QStringLiteral("\u6253\u5f00\u56fe\u7247")));
         if (m_openVideoAction) m_openVideoAction->setText(localizedText(languageCode, "Open Video", QStringLiteral("\u6253\u5f00\u89c6\u9891")));
-        if (m_importYoloModelAction) m_importYoloModelAction->setText(localizedText(languageCode, "Import YOLO Model", QStringLiteral("\u5bfc\u5165 YOLO \u6a21\u578b")));
+        if (m_openImageFolderAction) {
+            m_openImageFolderAction->setText(localizedText(
+                languageCode,
+                "Open Image Folder",
+                QStringLiteral("\u6253\u5f00\u56fe\u7247\u6587\u4ef6\u5939")
+            ));
+        }
+        if (m_openRecentMenu) {
+            m_openRecentMenu->setTitle(localizedText(languageCode, "Open Recent", QStringLiteral("\u6253\u5f00\u6700\u8fd1")));
+        }
+        if (m_importYoloModelAction) m_importYoloModelAction->setText(localizedText(languageCode, "Import ONNX Model", QStringLiteral("\u5bfc\u5165 ONNX \u6a21\u578b")));
+        if (m_editModelConfigAction) {
+            m_editModelConfigAction->setText(localizedText(
+                languageCode,
+                "Edit Model Configuration",
+                QStringLiteral("\u7f16\u8f91\u6a21\u578b\u914d\u7f6e")
+            ));
+        }
+
+        if (m_saveProjectAction) m_saveProjectAction->setText(localizedText(languageCode, "Save Project", QStringLiteral("\u4fdd\u5b58\u9879\u76ee")));
+        if (m_loadProjectAction) m_loadProjectAction->setText(localizedText(languageCode, "Load Project", QStringLiteral("\u52a0\u8f7d\u9879\u76ee")));
+        if (m_openRecentProjectMenu) {
+            m_openRecentProjectMenu->setTitle(localizedText(
+                languageCode,
+                "Open Recent Project",
+                QStringLiteral("\u6253\u5f00\u6700\u8fd1\u9879\u76ee")
+            ));
+            rebuildRecentProjectMenu();
+        }
+        if (m_loadSampleProjectMenu) {
+            m_loadSampleProjectMenu->setTitle(localizedText(
+                languageCode,
+                "Load Sample Project",
+                QStringLiteral("\u52a0\u8f7d\u793a\u4f8b\u9879\u76ee")
+            ));
+            populateSampleProjectMenu();
+        }
 
         if (m_showPipelineWorkbenchAction) m_showPipelineWorkbenchAction->setText(localizedText(languageCode, "Show Operator Workbench", QStringLiteral("\u663e\u793a\u7b97\u5b50\u5de5\u4f5c\u5e26")));
         if (m_addOperatorMenu) m_addOperatorMenu->setTitle(localizedText(languageCode, "Add Operator", QStringLiteral("\u6dfb\u52a0\u7b97\u5b50")));
@@ -3069,13 +4879,86 @@ void MainWindow::rebuildMenuTexts()
         if (m_clearPipelineAction) m_clearPipelineAction->setText(localizedText(languageCode, "Clear Pipeline", QStringLiteral("\u6e05\u7a7a\u6d41\u7a0b")));
         if (m_savePipelineAction) m_savePipelineAction->setText(localizedText(languageCode, "Save Pipeline", QStringLiteral("\u4fdd\u5b58\u6d41\u7a0b")));
         if (m_loadPipelineAction) m_loadPipelineAction->setText(localizedText(languageCode, "Load Pipeline", QStringLiteral("\u52a0\u8f7d\u6d41\u7a0b")));
+        if (m_loadSamplePipelineMenu) {
+            m_loadSamplePipelineMenu->setTitle(localizedText(
+                languageCode,
+                "Load Sample Pipeline",
+                QStringLiteral("\u52a0\u8f7d\u793a\u4f8b\u6d41\u7a0b")
+            ));
+            populateSamplePipelineMenu();
+        }
+
+        if (m_showModelDockAction) {
+            m_showModelDockAction->setText(localizedText(
+                languageCode,
+                "Model && Tasks Panel",
+                QStringLiteral("\u6a21\u578b\u4e0e\u4efb\u52a1\u9762\u677f")
+            ));
+        }
+        if (m_showInspectorDockAction) {
+            m_showInspectorDockAction->setText(localizedText(
+                languageCode,
+                "Statistics && Diagnostics Panel",
+                QStringLiteral("\u7edf\u8ba1\u4e0e\u8bca\u65ad\u9762\u677f")
+            ));
+        }
+        if (m_showAllWorkbenchPanelsAction) {
+            m_showAllWorkbenchPanelsAction->setText(localizedText(
+                languageCode,
+                "Show All Side Panels",
+                QStringLiteral("\u663e\u793a\u5168\u90e8\u4fa7\u8fb9\u9762\u677f")
+            ));
+        }
+        if (m_hideAllWorkbenchPanelsAction) {
+            m_hideAllWorkbenchPanelsAction->setText(localizedText(
+                languageCode,
+                "Hide All Side Panels",
+                QStringLiteral("\u9690\u85cf\u5168\u90e8\u4fa7\u8fb9\u9762\u677f")
+            ));
+        }
+        if (m_showDiagnosticsAction) {
+            m_showDiagnosticsAction->setText(localizedText(
+                languageCode,
+                "Show Diagnostics",
+                QStringLiteral("\u663e\u793a\u8bca\u65ad")
+            ));
+        }
 
         if (m_showExportResultsAction) m_showExportResultsAction->setText(localizedText(languageCode, "Export Results", QStringLiteral("\u5bfc\u51fa\u7ed3\u679c")));
         if (m_exportDetectionImagesAction) m_exportDetectionImagesAction->setText(localizedText(languageCode, "Export Detection Images", QStringLiteral("\u5bfc\u51fa\u68c0\u6d4b\u56fe\u7247")));
         if (m_exportDetectionVideoAction) m_exportDetectionVideoAction->setText(localizedText(languageCode, "Export Detection Video", QStringLiteral("\u5bfc\u51fa\u68c0\u6d4b\u89c6\u9891")));
+        if (m_exportPipelineSnapshotAction) {
+            m_exportPipelineSnapshotAction->setText(localizedText(
+                languageCode,
+                "Export Pipeline Snapshot",
+                QStringLiteral("\u5bfc\u51fa\u6d41\u7a0b\u5feb\u7167")
+            ));
+        }
+        if (m_exportAppConfigSnapshotAction) {
+            m_exportAppConfigSnapshotAction->setText(localizedText(
+                languageCode,
+                "Export App Config Snapshot",
+                QStringLiteral("\u5bfc\u51fa\u5e94\u7528\u914d\u7f6e\u5feb\u7167")
+            ));
+        }
 
         if (m_fullPipelinePreviewAction) m_fullPipelinePreviewAction->setText(localizedText(languageCode, "Full Pipeline Preview", QStringLiteral("\u5168\u6d41\u7a0b\u9884\u89c8")));
         if (m_singleNodePreviewAction) m_singleNodePreviewAction->setText(localizedText(languageCode, "Single Node Preview", QStringLiteral("\u5355\u8282\u70b9\u9884\u89c8")));
+        if (m_dualViewAction) m_dualViewAction->setText(localizedText(languageCode, "Dual View", QStringLiteral("\u53cc\u753b\u9762")));
+        if (m_wipeViewAction) m_wipeViewAction->setText(localizedText(languageCode, "Wipe Comparison", QStringLiteral("\u62c6\u5206\u5bf9\u6bd4")));
+        if (m_fourGridViewAction) m_fourGridViewAction->setText(localizedText(languageCode, "Four Grid View", QStringLiteral("\u56db\u5bab\u683c")));
+        if (m_captureComparisonBaselineAction) {
+            m_captureComparisonBaselineAction->setText(localizedText(
+                languageCode,
+                "Capture Comparison Baseline",
+                QStringLiteral("\u6355\u83b7\u5bf9\u6bd4\u57fa\u7ebf")));
+        }
+        if (m_clearComparisonBaselineAction) {
+            m_clearComparisonBaselineAction->setText(localizedText(
+                languageCode,
+                "Clear Comparison Baseline",
+                QStringLiteral("\u6e05\u9664\u5bf9\u6bd4\u57fa\u7ebf")));
+        }
 
         if (m_previousFrameAction) m_previousFrameAction->setText(localizedText(languageCode, "Previous Frame", QStringLiteral("\u4e0a\u4e00\u5e27")));
         if (m_playPauseAction) {
@@ -3086,12 +4969,520 @@ void MainWindow::rebuildMenuTexts()
         if (m_nextFrameAction) m_nextFrameAction->setText(localizedText(languageCode, "Next Frame", QStringLiteral("\u4e0b\u4e00\u5e27")));
 
         if (m_systemSettingsAction) m_systemSettingsAction->setText(localizedText(languageCode, "System Settings", QStringLiteral("\u7cfb\u7edf\u8bbe\u7f6e")));
+        if (m_openQuickStartGuideAction) {
+            m_openQuickStartGuideAction->setText(localizedText(
+                languageCode,
+                "Quick Start",
+                QStringLiteral("\u5feb\u901f\u5165\u95e8")
+            ));
+        }
+        if (m_aboutAction) {
+            m_aboutAction->setText(localizedText(languageCode, "About CVVerify", QStringLiteral("\u5173\u4e8e CVVerify")));
+        }
         if (m_englishLanguageAction) m_englishLanguageAction->setText("English");
         if (m_chineseLanguageAction) m_chineseLanguageAction->setText(QStringLiteral("\u7b80\u4f53\u4e2d\u6587"));
 
         localizeOperatorMenuTree(m_addOperatorMenu, descriptors, languageCode);
         localizeOperatorMenuTree(m_operatorMenu, descriptors, languageCode);
+        rebuildRecentMediaMenu();
         rebuildEmbeddedWorkbenchTexts();
+        if (m_modelListPanel) {
+            m_modelListPanel->setLanguage(languageCode);
+        }
+        if (m_taskHistoryPanel) {
+            m_taskHistoryPanel->setLanguage(languageCode);
+        }
+        if (m_diagnosticsPanel) {
+            m_diagnosticsPanel->setLanguage(languageCode);
+        }
+        if (m_statisticsPanel) {
+            m_statisticsPanel->setLanguage(languageCode);
+        }
+        localizeWorkbenchDocks(languageCode);
+        if (m_previewCanvasHost) {
+            m_previewCanvasHost->setLanguage(languageCode);
+        }
         return;
     }
+}
+
+void MainWindow::setPreviewViewMode(PreviewViewMode mode)
+{
+    m_previewViewMode = mode;
+    if (!m_previewCanvasHost) {
+        return;
+    }
+
+    switch (mode) {
+    case PreviewViewMode::Wipe:
+        m_previewCanvasHost->setMode(PreviewCanvasHost::Mode::Wipe);
+        break;
+    case PreviewViewMode::FourGrid:
+        m_previewCanvasHost->setMode(PreviewCanvasHost::Mode::FourGrid);
+        break;
+    case PreviewViewMode::Dual:
+    default:
+        m_previewCanvasHost->setMode(PreviewCanvasHost::Mode::Dual);
+        break;
+    }
+    rerunPreview();
+}
+
+void MainWindow::exportBatchPipeline()
+{
+    if (m_currentMediaInfo.kind != MediaSourceKind::ImageFolder) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Batch pipeline export requires an image folder",
+            QStringLiteral("批量流程导出需要图片文件夹")));
+        return;
+    }
+
+    ImageFolderSource source(m_currentMediaInfo.sourceId);
+    const QStringList imagePaths = source.imagePaths();
+    if (imagePaths.isEmpty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "No images found in folder",
+            QStringLiteral("文件夹中没有图片")));
+        return;
+    }
+
+    const QString outputDir = QFileDialog::getExistingDirectory(
+        this,
+        localizedText(m_appSettings.languageCode, "Select Batch Output Directory", QStringLiteral("选择批量输出目录")),
+        m_appSettings.defaultExportDirectory);
+    if (outputDir.isEmpty()) {
+        return;
+    }
+
+    TaskDefinition task;
+    task.taskId = QString("batch_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+    task.displayName = "Batch Pipeline";
+    task.kind = TaskKind::BatchPipeline;
+    task.state = TaskState::Running;
+    task.createdAt = QDateTime::currentDateTime();
+    task.outputDirectory = outputDir;
+    recordTaskHistory(task);
+
+    const bool started = ApplicationContext::instance().taskScheduler().startTask(
+        TaskKind::BatchPipeline,
+        imagePaths.size(),
+        [this, imagePaths, outputDir](int current, int, bool* cancelRequested, bool*, QString* stepError) {
+            if (cancelRequested && *cancelRequested) {
+                return false;
+            }
+
+            FramePacket frame;
+            const QString imagePath = imagePaths.at(current);
+            cv::Mat image = cv::imread(OpenCvImageIO::toOpenCvFilePath(imagePath), cv::IMREAD_COLOR);
+            if (image.empty()) {
+                if (stepError) {
+                    *stepError = QString("Failed to load %1").arg(imagePath);
+                }
+                return false;
+            }
+
+            frame.sourceId = imagePath;
+            frame.originalMat = image;
+            frame.workingMat = image.clone();
+            DetectionFrameResult detectionResult;
+            if (!processFrame(&frame, &detectionResult, stepError)) {
+                return false;
+            }
+
+            const QString stem = QFileInfo(imagePath).completeBaseName();
+            const QString outputPath = QDir(outputDir).filePath(stem + "_processed.png");
+            return cv::imwrite(OpenCvImageIO::toOpenCvFilePath(outputPath), frame.workingMat);
+        });
+
+    if (!started) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Failed to start batch pipeline task",
+            QStringLiteral("无法启动批量流程任务")));
+        return;
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Batch pipeline started (%1 images)").arg(imagePaths.size()),
+        QStringLiteral("批量流程已开始（%1 张图片）").arg(imagePaths.size())));
+}
+
+void MainWindow::exportComparisonResult()
+{
+    if (!m_currentFrame.hasOriginalFrame()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Load media before exporting comparison",
+            QStringLiteral("导出对比图前请先加载媒体")));
+        return;
+    }
+
+    FramePacket preview = m_currentFrame;
+    preview.workingMat = preview.originalMat.clone();
+    DetectionFrameResult detectionResult;
+    QString errorMessage;
+    if (!processFrame(&preview, &detectionResult, &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    if (!detectionResult.boxes.isEmpty() || preview.artifacts.contains("classification_top_k")) {
+        DetectionRenderComposer::applyModelArtifactsOverlay(
+            preview.workingMat,
+            detectionResult,
+            preview.artifacts);
+    }
+
+    const QString outputDir = QFileDialog::getExistingDirectory(
+        this,
+        localizedText(m_appSettings.languageCode, "Select Comparison Output Directory", QStringLiteral("选择对比图输出目录")),
+        m_appSettings.defaultExportDirectory);
+    if (outputDir.isEmpty()) {
+        return;
+    }
+
+    const cv::Mat leftImage = m_comparisonBaselineActive && !m_comparisonBaselineMat.empty()
+        ? m_comparisonBaselineMat
+        : m_currentFrame.originalMat;
+    const QString outputPath = QDir(outputDir).filePath("comparison.png");
+    if (!DetectionExportService::exportComparisonImage(
+            leftImage,
+            preview.workingMat,
+            outputPath,
+            &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    DetectionExportService::exportEnvironmentSummary(outputDir, &errorMessage);
+    DetectionExportService::exportValidationReport(outputDir, DiagnosticsLog::instance().summaryText(), &errorMessage);
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Comparison exported to %1").arg(outputPath),
+        QStringLiteral("对比图已导出到 %1").arg(outputPath)));
+}
+
+void MainWindow::captureComparisonBaseline()
+{
+    if (!m_currentFrame.hasOriginalFrame()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Load media before capturing comparison baseline",
+            QStringLiteral("捕获对比基线前请先加载媒体")));
+        return;
+    }
+
+    FramePacket preview = m_currentFrame;
+    preview.workingMat = preview.originalMat.clone();
+    if (m_previewScale < 0.99) {
+        preview.workingMat = applyPreviewScale(preview.workingMat, m_previewScale);
+    }
+
+    DetectionFrameResult detectionResult;
+    QString errorMessage;
+    if (m_previewMode == PreviewMode::SingleNode) {
+        std::shared_ptr<IPipelineStep> previewStep;
+        if (m_selectedPipelineStepIndex >= 0
+            && m_selectedPipelineStepIndex < static_cast<int>(m_pipelineSteps.size())) {
+            previewStep = m_pipelineSteps[static_cast<std::size_t>(m_selectedPipelineStepIndex)].step;
+        } else {
+            previewStep = m_singlePreviewStep;
+        }
+        if (previewStep) {
+            const StepResult singleStepResult = previewStep->execute(preview, RunContext{true});
+            if (!singleStepResult.success) {
+                statusBar()->showMessage(singleStepResult.errorMessage);
+                return;
+            }
+        }
+        if (!m_activeDetectionModelPath.isEmpty()) {
+            detectionResult.sourceId = preview.sourceId;
+            detectionResult.frameId = preview.frameId;
+            detectionResult.timestampMs = preview.timestampMs;
+            if (!runDetectionOnCurrentFrame(&preview, &detectionResult, &errorMessage)) {
+                statusBar()->showMessage(errorMessage);
+                return;
+            }
+        }
+    } else if (!processFrame(&preview, &detectionResult, &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    if (!detectionResult.boxes.isEmpty() || preview.artifacts.contains("classification_top_k")) {
+        DetectionRenderComposer::applyModelArtifactsOverlay(
+            preview.workingMat,
+            detectionResult,
+            preview.artifacts);
+    }
+
+    m_comparisonBaselineMat = preview.workingMat.clone();
+    m_comparisonBaselineActive = !m_comparisonBaselineMat.empty();
+    if (m_clearComparisonBaselineAction) {
+        m_clearComparisonBaselineAction->setEnabled(m_comparisonBaselineActive);
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        "Comparison baseline captured",
+        QStringLiteral("已捕获对比基线")));
+    rerunPreview();
+}
+
+void MainWindow::clearComparisonBaseline()
+{
+    m_comparisonBaselineMat.release();
+    m_comparisonBaselineActive = false;
+    if (m_clearComparisonBaselineAction) {
+        m_clearComparisonBaselineAction->setEnabled(false);
+    }
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        "Comparison baseline cleared",
+        QStringLiteral("已清除对比基线")));
+    rerunPreview();
+}
+
+void MainWindow::addActiveModelStepToPipeline()
+{
+    if (m_activeDetectionModelPath.isEmpty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Import or activate a model first",
+            QStringLiteral("请先导入或激活模型")));
+        return;
+    }
+
+    if (!ensureMediaSelectedForOperatorAdd()) {
+        return;
+    }
+
+    auto modelStep = OnnxModelStepFactory::createStep(
+        m_activeDetectionModel,
+        m_activeDetectionModelPath,
+        m_activeDetectionLabels);
+    if (!modelStep) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "Failed to create model step",
+            QStringLiteral("无法创建模型步骤")));
+        return;
+    }
+
+    m_pipelineSteps.push_back({m_activeDetectionModel.modelName, modelStep});
+    m_selectedPipelineStepIndex = static_cast<int>(m_pipelineSteps.size()) - 1;
+    m_pipelinePanel->setPipelineStepNames(pipelineStepNames());
+    m_pipelinePanel->setCurrentPipelineStep(m_selectedPipelineStepIndex);
+    m_parameterPanel->setStep(modelStep);
+    rebuildPipelineStrip();
+    rerunPreview();
+}
+
+void MainWindow::registerApplicationCommands()
+{
+    auto& dispatcher = ApplicationContext::instance().commandDispatcher();
+    dispatcher.registerCommand("media.open_image", [this] { loadImageFile(); });
+    dispatcher.registerCommand("media.open_video", [this] { loadVideoFile(); });
+    dispatcher.registerCommand("project.save", [this] { saveProjectToFile(); });
+    dispatcher.registerCommand("project.load", [this] { loadProjectFromFile(); });
+    dispatcher.registerCommand("pipeline.load_sample", [this] {
+        loadSamplePipeline(QStringLiteral("samples/pipelines/basic_blur.json"));
+    });
+    dispatcher.registerCommand("project.load_sample", [this] {
+        loadSampleProject(QStringLiteral("samples/projects/demo_project.json"));
+    });
+    dispatcher.registerCommand("pipeline.rerun", [this] { rerunPreview(); });
+    dispatcher.registerCommand("export.comparison", [this] { exportComparisonResult(); });
+    dispatcher.registerCommand("settings.open", [this] { showSystemSettings(); });
+    dispatcher.registerCommand("diagnostics.show", [this] { showInspectorPanel(1); });
+    dispatcher.registerCommand("welcome.show", [this] { presentQuickStartGuideDialog(); });
+}
+
+void MainWindow::refreshWorkbenchPanels()
+{
+    if (m_modelListPanel) {
+        m_modelListPanel->refreshModels();
+    }
+    if (m_diagnosticsPanel) {
+        m_diagnosticsPanel->refresh();
+    }
+}
+
+void MainWindow::handleParameterReset()
+{
+    if (m_selectedPipelineStepIndex < 0 || m_selectedPipelineStepIndex >= static_cast<int>(m_pipelineSteps.size())) {
+        return;
+    }
+
+    const auto& step = m_pipelineSteps[static_cast<std::size_t>(m_selectedPipelineStepIndex)].step;
+    if (!step) {
+        return;
+    }
+
+    const StepSchema schema = step->schema();
+    QVariantMap defaults;
+    for (const StepParameter& parameter : schema.parameters) {
+        defaults.insert(parameter.key, parameter.defaultValue);
+    }
+    step->setParameterValues(defaults);
+    m_parameterPanel->setStep(step);
+    rerunPreview();
+}
+
+void MainWindow::handleParameterSavePreset()
+{
+    if (m_selectedPipelineStepIndex < 0 || m_selectedPipelineStepIndex >= static_cast<int>(m_pipelineSteps.size())) {
+        return;
+    }
+
+    const auto& step = m_pipelineSteps[static_cast<std::size_t>(m_selectedPipelineStepIndex)].step;
+    if (!step) {
+        return;
+    }
+
+    const QString presetName = QInputDialog::getText(
+        this,
+        localizedText(m_appSettings.languageCode, "Save Preset", QStringLiteral("保存预设")),
+        localizedText(m_appSettings.languageCode, "Preset name", QStringLiteral("预设名称")));
+    if (presetName.trimmed().isEmpty()) {
+        return;
+    }
+
+    QString errorMessage;
+    if (!ParameterPresetStore::savePreset(step->id(), presetName.trimmed(), step->parameterValues(), &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Saved preset: %1").arg(presetName),
+        QStringLiteral("已保存预设: %1").arg(presetName)));
+}
+
+void MainWindow::handleParameterLoadPreset()
+{
+    if (m_selectedPipelineStepIndex < 0 || m_selectedPipelineStepIndex >= static_cast<int>(m_pipelineSteps.size())) {
+        return;
+    }
+
+    const auto& step = m_pipelineSteps[static_cast<std::size_t>(m_selectedPipelineStepIndex)].step;
+    if (!step) {
+        return;
+    }
+
+    const QStringList presets = ParameterPresetStore::listPresets(step->id());
+    if (presets.isEmpty()) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            "No presets found",
+            QStringLiteral("未找到预设")));
+        return;
+    }
+
+    bool ok = false;
+    const QString presetName = QInputDialog::getItem(
+        this,
+        localizedText(m_appSettings.languageCode, "Load Preset", QStringLiteral("加载预设")),
+        localizedText(m_appSettings.languageCode, "Preset", QStringLiteral("预设")),
+        presets,
+        0,
+        false,
+        &ok);
+    if (!ok || presetName.isEmpty()) {
+        return;
+    }
+
+    QVariantMap values;
+    QString errorMessage;
+    if (!ParameterPresetStore::loadPreset(step->id(), presetName, &values, &errorMessage)) {
+        statusBar()->showMessage(errorMessage);
+        return;
+    }
+
+    step->setParameterValues(values);
+    m_parameterPanel->setStep(step);
+    rerunPreview();
+}
+
+void MainWindow::updateCursorStatus(const QPointF& imagePoint, const QColor& pixelColor)
+{
+    if (!m_cursorStatusLabel) {
+        return;
+    }
+
+    const QString zoomText = m_canvasView
+        ? QString("Zoom %1%").arg(static_cast<int>(m_canvasView->zoomFactor() * 100.0))
+        : QString();
+    m_cursorStatusLabel->setText(QString("(%1, %2) RGB(%3, %4, %5) %6")
+        .arg(static_cast<int>(imagePoint.x()))
+        .arg(static_cast<int>(imagePoint.y()))
+        .arg(pixelColor.red())
+        .arg(pixelColor.green())
+        .arg(pixelColor.blue())
+        .arg(zoomText));
+}
+
+void MainWindow::activateModelByName(const QString& modelName)
+{
+    RegisteredModelPackage package;
+    if (!ApplicationContext::instance().modelRegistry().findByName(modelName, &package)) {
+        statusBar()->showMessage(localizedText(
+            m_appSettings.languageCode,
+            QString("Model not found: %1").arg(modelName),
+            QStringLiteral("未找到模型: %1").arg(modelName)));
+        return;
+    }
+
+    m_activeDetectionModel = package.descriptor;
+    m_activeDetectionModelPath = package.modelPath;
+    m_activeDetectionModelPackageDir = package.packageDir;
+    m_activeDetectionLabels = package.labels;
+    ApplicationContext::instance().modelRegistry().setActiveModelName(modelName);
+    if (m_modelListPanel) {
+        m_modelListPanel->refreshModels();
+    }
+    statusBar()->showMessage(localizedText(
+        m_appSettings.languageCode,
+        QString("Active model: %1").arg(modelName),
+        QStringLiteral("当前模型: %1").arg(modelName)));
+    rerunPreview();
+}
+
+void MainWindow::syncPreviewSettingsFromAppSettings()
+{
+    m_maxPreviewFps = qMax(0, m_appSettings.maxPreviewFps);
+    m_previewScale = qBound(0.1, m_appSettings.previewScale, 1.0);
+    m_previewFrameStep = qMax(1, m_appSettings.previewFrameStep);
+    OpenCvDnnRunner::setPreferredBackend(m_appSettings.dnnBackend);
+}
+
+void MainWindow::recordTaskHistory(const TaskDefinition& task)
+{
+    m_taskHistory.prepend(task);
+    while (m_taskHistory.size() > 20) {
+        m_taskHistory.removeLast();
+    }
+    refreshTaskHistoryPanel();
+}
+
+void MainWindow::refreshTaskHistoryPanel()
+{
+    if (m_taskHistoryPanel) {
+        m_taskHistoryPanel->setTasks(m_taskHistory);
+    }
+}
+
+void MainWindow::updateLatestTaskHistory(const TaskProgress& progress)
+{
+    if (m_taskHistory.isEmpty()) {
+        return;
+    }
+
+    m_taskHistory[0].state = progress.state;
+    m_taskHistory[0].progress = progress;
+    refreshTaskHistoryPanel();
 }

@@ -6,44 +6,86 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>520</width>
-    <height>180</height>
+    <width>560</width>
+    <height>280</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Import YOLO ONNX Model</string>
+   <string>Import ONNX Model</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
+      <widget class="QLabel" name="sourceTypeLabel">
+       <property name="text">
+        <string>Model Category</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="sourceTypeComboBox"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="templateLabel">
+       <property name="text">
+        <string>Template</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="templateComboBox"/>
+     </item>
+     <item row="2" column="0">
       <widget class="QLabel" name="modelPathLabel">
        <property name="text">
         <string>Model Path</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="1">
-      <widget class="QLineEdit" name="modelPathEdit"/>
+     <item row="2" column="1">
+      <layout class="QHBoxLayout" name="modelPathLayout">
+       <item>
+        <widget class="QLineEdit" name="modelPathEdit"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="browseModelButton">
+         <property name="text">
+          <string>Browse...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
-     <item row="1" column="0">
+     <item row="3" column="0">
       <widget class="QLabel" name="labelsPathLabel">
        <property name="text">
         <string>Labels Path</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="labelsPathEdit"/>
+     <item row="3" column="1">
+      <layout class="QHBoxLayout" name="labelsPathLayout">
+       <item>
+        <widget class="QLineEdit" name="labelsPathEdit"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="browseLabelsButton">
+         <property name="text">
+          <string>Browse...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
-     <item row="2" column="0">
+     <item row="4" column="0">
       <widget class="QLabel" name="modelNameLabel">
        <property name="text">
         <string>Model Name</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
+     <item row="4" column="1">
       <widget class="QLineEdit" name="modelNameEdit"/>
      </item>
     </layout>
@@ -67,32 +109,12 @@
    <signal>accepted()</signal>
    <receiver>YoloModelImportDialog</receiver>
    <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>YoloModelImportDialog</receiver>
    <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
  </connections>
 </ui>

@@ -1,0 +1,26 @@
+{
+  "languageCode": "en",
+  "defaultExportDirectory": "",
+  "autoOpenExportDirectory": false,
+  "maxRecentMediaFiles": 10,
+  "preview": {
+    "maxFps": 30,
+    "allowFrameSkip": true,
+    "previewScale": 1.0,
+    "frameStep": 1
+  },
+  "task": {
+    "defaultLogLevel": "info",
+    "offlineVideoStartFrame": 0,
+    "offlineVideoEndFrame": -1
+  },
+  "dnn": {
+    "backend": "cpu"
+  },
+  "export": {
+    "videoSideBySide": false
+  },
+  "ui": {
+    "showWelcomeGuide": true
+  }
+}

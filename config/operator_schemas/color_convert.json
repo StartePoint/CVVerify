@@ -1,0 +1,56 @@
+{
+  "id": "builtin.color_convert",
+  "displayName": "Color Convert",
+  "category": "Filter Effects",
+  "parameters": [
+    {
+      "key": "conversion",
+      "displayName": "Conversion",
+      "group": "颜色设置",
+      "type": "choice",
+      "default": "bgr_to_gray",
+      "choices": [
+        {
+          "value": "bgr_to_gray",
+          "label": "BGR to Gray"
+        },
+        {
+          "value": "gray_to_bgr",
+          "label": "Gray to BGR"
+        },
+        {
+          "value": "bgr_to_rgb",
+          "label": "BGR to RGB"
+        },
+        {
+          "value": "rgb_to_bgr",
+          "label": "RGB to BGR"
+        },
+        {
+          "value": "bgr_to_hsv",
+          "label": "BGR to HSV"
+        },
+        {
+          "value": "hsv_to_bgr",
+          "label": "HSV to BGR"
+        },
+        {
+          "value": "bgr_to_lab",
+          "label": "BGR to Lab"
+        },
+        {
+          "value": "lab_to_bgr",
+          "label": "Lab to BGR"
+        },
+        {
+          "value": "bgr_to_ycrcb",
+          "label": "BGR to YCrCb"
+        },
+        {
+          "value": "ycrcb_to_bgr",
+          "label": "YCrCb to BGR"
+        }
+      ]
+    }
+  ]
+}

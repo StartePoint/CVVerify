@@ -1,0 +1,27 @@
+{
+  "id": "builtin.resize",
+  "displayName": "Resize",
+  "category": "Transform",
+  "parameters": [
+    {
+      "key": "width",
+      "displayName": "Width",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 640,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    },
+    {
+      "key": "height",
+      "displayName": "Height",
+      "group": "输出设置",
+      "type": "integer",
+      "default": 480,
+      "min": 1,
+      "max": 8192,
+      "step": 1
+    }
+  ]
+}

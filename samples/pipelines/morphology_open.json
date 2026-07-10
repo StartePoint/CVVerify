@@ -1,0 +1,31 @@
+{
+  "pipelineId": "samples.morphology_open",
+  "displayName": "Threshold + Morphology Open",
+  "steps": [
+    {
+      "stepId": "builtin.grayscale",
+      "displayName": "Grayscale",
+      "parameters": {}
+    },
+    {
+      "stepId": "builtin.threshold",
+      "displayName": "Threshold",
+      "parameters": {
+        "threshold": 128.0,
+        "maxValue": 255.0,
+        "type": "binary"
+      }
+    },
+    {
+      "stepId": "builtin.morphology",
+      "displayName": "Morphology",
+      "parameters": {
+        "operation": "open",
+        "kernelShape": "rect",
+        "kernelWidth": 3,
+        "kernelHeight": 3,
+        "iterations": 1
+      }
+    }
+  ]
+}

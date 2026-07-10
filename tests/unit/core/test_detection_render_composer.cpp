@@ -10,6 +10,7 @@ class DetectionRenderComposerTest : public QObject
 
 private slots:
     void drawsOverlayForDetections();
+    void drawsClassificationOverlay();
 };
 
 void DetectionRenderComposerTest::drawsOverlayForDetections()
@@ -27,6 +28,19 @@ void DetectionRenderComposerTest::drawsOverlayForDetections()
     DetectionRenderComposer::drawDetections(image, result);
 
     const cv::Vec3b pixel = image.at<cv::Vec3b>(10, 10);
+    QVERIFY(pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0);
+}
+
+void DetectionRenderComposerTest::drawsClassificationOverlay()
+{
+    cv::Mat image(64, 64, CV_8UC3, cv::Scalar(0, 0, 0));
+    QVariantMap artifacts;
+    artifacts.insert("classification_top_k", QVariantList{
+        QVariantMap{{"label", "cat"}, {"score", 0.91}}
+    });
+
+    DetectionRenderComposer::drawClassificationResults(image, artifacts);
+    const cv::Vec3b pixel = image.at<cv::Vec3b>(20, 12);
     QVERIFY(pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0);
 }
 

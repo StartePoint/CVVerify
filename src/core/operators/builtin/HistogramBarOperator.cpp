@@ -151,6 +151,10 @@ StepSchema HistogramBarOperator::schema() const
                 {"filled", "Filled"},
                 {"stroke", "Stroke"},
             }},
+            {"chartMode", "Chart Mode", "图表设置", StepParameterType::Choice, "replace", {}, {}, {}, {}, {}, {
+                {"replace", "Replace Image"},
+                {"sidecar", "Sidecar Chart"},
+            }},
         }
     };
 }
@@ -164,6 +168,7 @@ QVariantMap HistogramBarOperator::parameterValues() const
         {"rangeMax", m_rangeMax},
         {"normalize", m_normalize},
         {"barStyle", m_barStyle},
+        {"chartMode", m_chartMode},
     };
 }
 
@@ -175,6 +180,7 @@ void HistogramBarOperator::setParameterValues(const QVariantMap& values)
     if (values.contains("rangeMax")) m_rangeMax = values.value("rangeMax").toDouble();
     if (values.contains("normalize")) m_normalize = values.value("normalize").toBool();
     if (values.contains("barStyle")) m_barStyle = values.value("barStyle").toString();
+    if (values.contains("chartMode")) m_chartMode = values.value("chartMode").toString();
 }
 
 StepResult HistogramBarOperator::execute(FramePacket& frame, const RunContext&)
@@ -199,7 +205,7 @@ StepResult HistogramBarOperator::execute(FramePacket& frame, const RunContext&)
         return {false, "Unsupported histogram channel mode"};
     }
 
-    frame.workingMat = renderHistogramBarCanvas(
+    const cv::Mat chart = renderHistogramBarCanvas(
         histograms,
         colors,
         std::max(8, m_bins),
@@ -207,6 +213,12 @@ StepResult HistogramBarOperator::execute(FramePacket& frame, const RunContext&)
         cv::Size(640, 360),
         m_barStyle == "stroke"
     );
+    if (m_chartMode == "sidecar") {
+        frame.sidecarMat = chart;
+        frame.sidecarKind = "histogram";
+    } else {
+        frame.workingMat = chart;
+    }
     frame.metrics.insert("histogram_bins", std::max(8, m_bins));
     return {};
 }

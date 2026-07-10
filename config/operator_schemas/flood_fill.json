@@ -1,0 +1,97 @@
+{
+  "id": "builtin.flood_fill",
+  "displayName": "Flood Fill",
+  "category": "Segmentation",
+  "parameters": [
+    {
+      "key": "seedMode",
+      "displayName": "Seed Mode",
+      "group": "交互设置",
+      "type": "choice",
+      "default": "manual_click",
+      "choices": [
+        {
+          "value": "manual_click",
+          "label": "Manual Click"
+        },
+        {
+          "value": "auto_random",
+          "label": "Auto Random"
+        }
+      ]
+    },
+    {
+      "key": "connectivity",
+      "displayName": "Connectivity",
+      "group": "填充设置",
+      "type": "choice",
+      "default": "4",
+      "choices": [
+        {
+          "value": "4",
+          "label": "4"
+        },
+        {
+          "value": "8",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "key": "loDiff",
+      "displayName": "Lo Diff",
+      "group": "填充设置",
+      "type": "integer",
+      "default": 20,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    {
+      "key": "upDiff",
+      "displayName": "Up Diff",
+      "group": "填充设置",
+      "type": "integer",
+      "default": 20,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    {
+      "key": "fixedRange",
+      "displayName": "Fixed Range",
+      "group": "填充设置",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "outputMode",
+      "displayName": "Output Mode",
+      "group": "输出设置",
+      "type": "choice",
+      "default": "overlay",
+      "choices": [
+        {
+          "value": "overlay",
+          "label": "Overlay"
+        },
+        {
+          "value": "fill_color",
+          "label": "Fill Color"
+        },
+        {
+          "value": "mask_only",
+          "label": "Mask Only"
+        }
+      ]
+    },
+    {
+      "key": "fillColor",
+      "displayName": "Fill Color",
+      "group": "输出设置",
+      "type": "string",
+      "default": "#00ff99",
+      "visibleWhen": "outputMode!=mask_only"
+    }
+  ]
+}

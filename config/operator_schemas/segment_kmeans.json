@@ -1,0 +1,86 @@
+{
+  "id": "builtin.segment_kmeans",
+  "displayName": "K-Means Segmentation",
+  "category": "Segmentation",
+  "parameters": [
+    {
+      "key": "clusterCount",
+      "displayName": "Cluster Count",
+      "group": "聚类设置",
+      "type": "integer",
+      "default": 4,
+      "min": 2,
+      "max": 32,
+      "step": 1
+    },
+    {
+      "key": "colorSpace",
+      "displayName": "Color Space",
+      "group": "聚类设置",
+      "type": "choice",
+      "default": "lab",
+      "choices": [
+        {
+          "value": "bgr",
+          "label": "BGR"
+        },
+        {
+          "value": "hsv",
+          "label": "HSV"
+        },
+        {
+          "value": "lab",
+          "label": "Lab"
+        }
+      ]
+    },
+    {
+      "key": "includeSpatialXY",
+      "displayName": "Include Spatial XY",
+      "group": "聚类设置",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "spatialWeight",
+      "displayName": "Spatial Weight",
+      "group": "聚类设置",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 1.0,
+      "visibleWhen": "includeSpatialXY=true"
+    },
+    {
+      "key": "maxIterations",
+      "displayName": "Max Iterations",
+      "group": "聚类设置",
+      "type": "integer",
+      "default": 20,
+      "min": 1,
+      "max": 1000,
+      "step": 1
+    },
+    {
+      "key": "epsilon",
+      "displayName": "Epsilon",
+      "group": "聚类设置",
+      "type": "double",
+      "default": 1.0,
+      "min": 0.0001,
+      "max": 100.0,
+      "step": 0.1
+    },
+    {
+      "key": "attempts",
+      "displayName": "Attempts",
+      "group": "聚类设置",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 100,
+      "step": 1
+    }
+  ]
+}

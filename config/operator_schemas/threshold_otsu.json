@@ -1,0 +1,34 @@
+{
+  "id": "builtin.threshold_otsu",
+  "displayName": "Otsu Threshold",
+  "category": "Thresholding",
+  "parameters": [
+    {
+      "key": "maxValue",
+      "displayName": "Max Value",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 255.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "thresholdType",
+      "displayName": "Threshold Type",
+      "group": "阈值设置",
+      "type": "choice",
+      "default": "binary",
+      "choices": [
+        {
+          "value": "binary",
+          "label": "Binary"
+        },
+        {
+          "value": "binary_inv",
+          "label": "Binary Inverted"
+        }
+      ]
+    }
+  ]
+}

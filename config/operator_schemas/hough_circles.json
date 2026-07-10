@@ -1,0 +1,67 @@
+{
+  "id": "builtin.hough_circles",
+  "displayName": "Hough Circles",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "dp",
+      "displayName": "Dp",
+      "group": "检测设置",
+      "type": "double",
+      "default": 1.0,
+      "min": 1.0,
+      "max": 10.0,
+      "step": 0.1
+    },
+    {
+      "key": "minDist",
+      "displayName": "Min Dist",
+      "group": "检测设置",
+      "type": "double",
+      "default": 20.0,
+      "min": 0.0,
+      "max": 100000.0,
+      "step": 1.0
+    },
+    {
+      "key": "param1",
+      "displayName": "Param1",
+      "group": "检测设置",
+      "type": "double",
+      "default": 100.0,
+      "min": 0.0,
+      "max": 500.0,
+      "step": 1.0
+    },
+    {
+      "key": "param2",
+      "displayName": "Param2",
+      "group": "检测设置",
+      "type": "double",
+      "default": 30.0,
+      "min": 0.0,
+      "max": 500.0,
+      "step": 1.0
+    },
+    {
+      "key": "minRadius",
+      "displayName": "Min Radius",
+      "group": "检测设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100000,
+      "step": 1
+    },
+    {
+      "key": "maxRadius",
+      "displayName": "Max Radius",
+      "group": "检测设置",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100000,
+      "step": 1
+    }
+  ]
+}

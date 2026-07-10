@@ -4,6 +4,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QVariantMap>
 
 #include <opencv2/core.hpp>
 
@@ -12,10 +13,19 @@
 
 namespace DetectionExportService {
 
+struct VideoExportOptions
+{
+    int startFrame = 0;
+    int endFrame = -1;
+    bool sideBySide = false;
+};
+
 struct DetectionExportContext
 {
     QString pipelineSnapshotJson;
     QString modelConfigJson;
+    QVariantMap frameArtifacts;
+    QVariantMap tensorOutputs;
 };
 
 bool exportImageResult(
@@ -37,7 +47,30 @@ bool exportVideoResult(
     const QString& outputDir,
     const std::function<bool(FramePacket*, DetectionFrameResult*, QString*)>& processor,
     QString* errorMessage = nullptr,
-    const DetectionExportContext& context = {}
+    const DetectionExportContext& context = {},
+    const VideoExportOptions& videoOptions = {}
+);
+bool exportComparisonImage(
+    const cv::Mat& leftImage,
+    const cv::Mat& rightImage,
+    const QString& outputPath,
+    QString* errorMessage = nullptr
+);
+bool exportEnvironmentSummary(
+    const QString& outputDir,
+    QString* errorMessage = nullptr
+);
+bool exportValidationReport(
+    const QString& outputDir,
+    const QString& summaryText,
+    QString* errorMessage = nullptr
+);
+bool exportTensorSummary(
+    const QVariantMap& tensorOutputs,
+    const QVariantMap& frameArtifacts,
+    const QString& outputDir,
+    const QString& fileName = QString("tensor_summary.json"),
+    QString* errorMessage = nullptr
 );
 
 }

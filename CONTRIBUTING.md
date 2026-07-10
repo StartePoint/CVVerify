@@ -73,3 +73,19 @@ Update documentation when:
 - public repository policies change
 
 At minimum, review `README.md`, `docs/build-windows-mingw.md`, and any feature-specific documents touched by the change.
+
+## Bundled Resource Maintenance
+
+When operator parameters change in C++:
+
+```bash
+python scripts/generate_operator_schemas.py
+```
+
+When sample images need regeneration:
+
+```bash
+python scripts/generate_sample_assets.py
+```
+
+See [scripts/README.md](../scripts/README.md) for details.

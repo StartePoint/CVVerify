@@ -182,6 +182,14 @@ PipelinePanel::PipelinePanel(QWidget* parent)
 
     connect(m_availableOperatorsList, &QListWidget::currentItemChanged, this,
         [this](QListWidgetItem* current, QListWidgetItem*) {
+            if (current != nullptr && current->data(kIsCategoryHeaderRole).toBool()) {
+                m_availableOperatorsList->blockSignals(true);
+                m_availableOperatorsList->setCurrentItem(nullptr);
+                m_availableOperatorsList->blockSignals(false);
+                m_addOperatorButton->setEnabled(false);
+                return;
+            }
+
             m_addOperatorButton->setEnabled(isAvailableOperatorItem(current));
         });
 

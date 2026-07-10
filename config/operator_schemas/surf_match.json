@@ -1,0 +1,128 @@
+{
+  "id": "builtin.surf_match",
+  "displayName": "SURF Match",
+  "category": "Feature Matching",
+  "parameters": [
+    {
+      "key": "secondImageSource",
+      "displayName": "Second Image Source",
+      "group": "输入设置",
+      "type": "choice",
+      "default": "external_pick",
+      "choices": [
+        {
+          "value": "external_pick",
+          "label": "External Pick"
+        },
+        {
+          "value": "current_workspace_cache",
+          "label": "Current Workspace Cache"
+        }
+      ]
+    },
+    {
+      "key": "secondaryImagePath",
+      "displayName": "Secondary Image Path",
+      "group": "输入设置",
+      "type": "string",
+      "default": "",
+      "visibleWhen": "secondImageSource=external_pick",
+      "tooltip": "Choose the second image used for feature matching"
+    },
+    {
+      "key": "backend",
+      "displayName": "Backend",
+      "group": "后端设置",
+      "type": "choice",
+      "default": "sift",
+      "tooltip": "Current SDK falls back to sift/orb/akaze",
+      "choices": [
+        {
+          "value": "surf",
+          "label": "SURF"
+        },
+        {
+          "value": "sift",
+          "label": "SIFT"
+        },
+        {
+          "value": "orb",
+          "label": "ORB"
+        },
+        {
+          "value": "akaze",
+          "label": "AKAZE"
+        }
+      ]
+    },
+    {
+      "key": "matcherType",
+      "displayName": "Matcher Type",
+      "group": "匹配设置",
+      "type": "choice",
+      "default": "bf",
+      "choices": [
+        {
+          "value": "bf",
+          "label": "BF"
+        },
+        {
+          "value": "flann",
+          "label": "FLANN"
+        }
+      ]
+    },
+    {
+      "key": "ratioTest",
+      "displayName": "Ratio Test",
+      "group": "匹配设置",
+      "type": "double",
+      "default": 0.75,
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.01
+    },
+    {
+      "key": "crossCheck",
+      "displayName": "Cross Check",
+      "group": "匹配设置",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "maxMatches",
+      "displayName": "Max Matches",
+      "group": "匹配设置",
+      "type": "integer",
+      "default": 80,
+      "min": 1,
+      "max": 5000,
+      "step": 1
+    },
+    {
+      "key": "useRansac",
+      "displayName": "Use RANSAC",
+      "group": "几何验证",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "ransacReprojThreshold",
+      "displayName": "RANSAC Reproj Threshold",
+      "group": "几何验证",
+      "type": "double",
+      "default": 3.0,
+      "min": 0.1,
+      "max": 50.0,
+      "step": 0.1,
+      "visibleWhen": "useRansac=true"
+    },
+    {
+      "key": "showInliersOnly",
+      "displayName": "Show Inliers Only",
+      "group": "输出设置",
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

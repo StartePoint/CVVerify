@@ -1,0 +1,22 @@
+{
+  "modelName": "yolo_detection_template",
+  "taskType": "detection",
+  "frameworkFamily": "yolo",
+  "input": {
+    "width": 640,
+    "height": 640,
+    "channels": 3,
+    "colorOrder": "RGB",
+    "letterbox": true,
+    "keepRatio": true,
+    "scale": 0.0039215686
+  },
+  "postprocess": {
+    "confidenceThreshold": 0.25,
+    "nmsIouThreshold": 0.45,
+    "maxDetections": 300
+  },
+  "output": {
+    "layoutType": "yolo_detect_auto"
+  }
+}

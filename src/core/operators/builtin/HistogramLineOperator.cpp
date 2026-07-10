@@ -164,6 +164,10 @@ StepSchema HistogramLineOperator::schema() const
                 {"linear", "Linear"},
                 {"log", "Log"},
             }},
+            {"chartMode", "Chart Mode", "图表设置", StepParameterType::Choice, "replace", {}, {}, {}, {}, {}, {
+                {"replace", "Replace Image"},
+                {"sidecar", "Sidecar Chart"},
+            }},
         }
     };
 }
@@ -177,6 +181,7 @@ QVariantMap HistogramLineOperator::parameterValues() const
         {"rangeMax", m_rangeMax},
         {"normalize", m_normalize},
         {"yScale", m_yScale},
+        {"chartMode", m_chartMode},
     };
 }
 
@@ -188,6 +193,7 @@ void HistogramLineOperator::setParameterValues(const QVariantMap& values)
     if (values.contains("rangeMax")) m_rangeMax = values.value("rangeMax").toDouble();
     if (values.contains("normalize")) m_normalize = values.value("normalize").toBool();
     if (values.contains("yScale")) m_yScale = values.value("yScale").toString();
+    if (values.contains("chartMode")) m_chartMode = values.value("chartMode").toString();
 }
 
 StepResult HistogramLineOperator::execute(FramePacket& frame, const RunContext&)
@@ -212,7 +218,7 @@ StepResult HistogramLineOperator::execute(FramePacket& frame, const RunContext&)
         return {false, "Unsupported histogram channel mode"};
     }
 
-    frame.workingMat = renderHistogramCanvas(
+    const cv::Mat chart = renderHistogramCanvas(
         histograms,
         colors,
         std::max(8, m_bins),
@@ -221,6 +227,12 @@ StepResult HistogramLineOperator::execute(FramePacket& frame, const RunContext&)
         cv::Size(640, 360),
         false
     );
+    if (m_chartMode == "sidecar") {
+        frame.sidecarMat = chart;
+        frame.sidecarKind = "histogram";
+    } else {
+        frame.workingMat = chart;
+    }
     frame.metrics.insert("histogram_bins", std::max(8, m_bins));
     return {};
 }

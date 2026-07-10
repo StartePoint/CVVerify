@@ -1,0 +1,54 @@
+{
+  "id": "builtin.pencil_sketch",
+  "displayName": "Pencil Sketch",
+  "category": "Filter Effects",
+  "parameters": [
+    {
+      "key": "outputMode",
+      "displayName": "Output Mode",
+      "group": "效果设置",
+      "type": "choice",
+      "default": "gray",
+      "choices": [
+        {
+          "value": "gray",
+          "label": "Gray"
+        },
+        {
+          "value": "color",
+          "label": "Color"
+        }
+      ]
+    },
+    {
+      "key": "sigmaS",
+      "displayName": "Sigma S",
+      "group": "效果设置",
+      "type": "double",
+      "default": 60.0,
+      "min": 0.0,
+      "max": 200.0,
+      "step": 1.0
+    },
+    {
+      "key": "sigmaR",
+      "displayName": "Sigma R",
+      "group": "效果设置",
+      "type": "double",
+      "default": 0.07,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01
+    },
+    {
+      "key": "shadeFactor",
+      "displayName": "Shade Factor",
+      "group": "效果设置",
+      "type": "double",
+      "default": 0.02,
+      "min": 0.0,
+      "max": 0.2,
+      "step": 0.01
+    }
+  ]
+}

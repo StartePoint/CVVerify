@@ -1,0 +1,59 @@
+{
+  "id": "builtin.template_match",
+  "displayName": "Template Match",
+  "category": "Detection",
+  "parameters": [
+    {
+      "key": "templateImagePath",
+      "displayName": "Template Image Path",
+      "group": "输入设置",
+      "type": "string",
+      "default": "",
+      "tooltip": "Choose the template image used for matching"
+    },
+    {
+      "key": "matchMethod",
+      "displayName": "Match Method",
+      "group": "匹配设置",
+      "type": "choice",
+      "default": "ccoeff_normed",
+      "choices": [
+        {
+          "value": "sqdiff",
+          "label": "SQDIFF"
+        },
+        {
+          "value": "sqdiff_normed",
+          "label": "SQDIFF Normed"
+        },
+        {
+          "value": "ccorr",
+          "label": "CCORR"
+        },
+        {
+          "value": "ccorr_normed",
+          "label": "CCORR Normed"
+        },
+        {
+          "value": "ccoeff",
+          "label": "CCOEFF"
+        },
+        {
+          "value": "ccoeff_normed",
+          "label": "CCOEFF Normed"
+        }
+      ]
+    },
+    {
+      "key": "threshold",
+      "displayName": "Threshold",
+      "group": "匹配设置",
+      "type": "double",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "tooltip": "For SQDIFF methods lower is better; for others higher is better"
+    }
+  ]
+}

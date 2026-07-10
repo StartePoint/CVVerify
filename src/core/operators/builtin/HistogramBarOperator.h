@@ -19,4 +19,5 @@ private:
     double m_rangeMax = 255.0;
     bool m_normalize = true;
     QString m_barStyle = "filled";
+    QString m_chartMode = "replace";
 };

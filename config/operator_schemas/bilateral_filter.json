@@ -1,0 +1,37 @@
+{
+  "id": "builtin.bilateral_filter",
+  "displayName": "Bilateral Filter",
+  "category": "Filtering",
+  "parameters": [
+    {
+      "key": "diameter",
+      "displayName": "Diameter",
+      "group": "滤波设置",
+      "type": "integer",
+      "default": 9,
+      "min": 1,
+      "max": 31,
+      "step": 1
+    },
+    {
+      "key": "sigmaColor",
+      "displayName": "Sigma Color",
+      "group": "滤波设置",
+      "type": "double",
+      "default": 75.0,
+      "min": 1.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "sigmaSpace",
+      "displayName": "Sigma Space",
+      "group": "滤波设置",
+      "type": "double",
+      "default": 75.0,
+      "min": 1.0,
+      "max": 255.0,
+      "step": 1.0
+    }
+  ]
+}

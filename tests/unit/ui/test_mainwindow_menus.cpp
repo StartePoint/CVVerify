@@ -6,6 +6,8 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QDialog>
 #include <QFrame>
 #include <QLabel>
@@ -22,6 +24,7 @@
 #include <QString>
 #include <QStringList>
 #include <QSpinBox>
+#include <QStatusBar>
 #include <QTimer>
 #include <QToolButton>
 #include <QVariantMap>
@@ -34,6 +37,19 @@
 #include "ui/widgets/CanvasView.h"
 
 namespace {
+
+void processUiEvents()
+{
+    for (int i = 0; i < 5; ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    }
+}
+
+void showMainWindowForTest(MainWindow& window)
+{
+    window.show();
+    processUiEvents();
+}
 
 QAction* findActionInMenu(QMenu* menu, const QString& objectName)
 {
@@ -68,6 +84,9 @@ class MainWindowMenuTest : public QObject
 
 private slots:
     void showsSettingsAndLanguageMenus();
+    void showsSamplePipelineAndProjectMenus();
+    void showsHelpMenu();
+    void showsRecentProjectMenu();
     void showsDualPreviewShell();
     void defaultsToLargeWindowWithHiddenOperatorWorkbench();
     void opensWorkbenchDialogsFromMenus();
@@ -84,6 +103,9 @@ private:
 void MainWindowMenuTest::seedLoadedMedia(MainWindow& window)
 {
     window.m_currentMediaInfo.sourceId = "test.png";
+    window.m_currentMediaInfo.kind = MediaSourceKind::ImageFile;
+    window.m_currentMediaInfo.width = 32;
+    window.m_currentMediaInfo.height = 32;
     window.m_currentFrame.sourceId = "test.png";
     window.m_currentFrame.originalMat = cv::Mat::zeros(32, 32, CV_8UC3);
     window.m_currentFrame.workingMat = window.m_currentFrame.originalMat.clone();
@@ -116,12 +138,48 @@ void MainWindowMenuTest::showsSettingsAndLanguageMenus()
     QVERIFY(languageAction != nullptr);
 }
 
+void MainWindowMenuTest::showsSamplePipelineAndProjectMenus()
+{
+    MainWindow window;
+
+    auto* samplePipelineMenu = window.findChild<QMenu*>("loadSamplePipelineMenu");
+    auto* sampleProjectMenu = window.findChild<QMenu*>("loadSampleProjectMenu");
+    QVERIFY(samplePipelineMenu != nullptr);
+    QVERIFY(sampleProjectMenu != nullptr);
+    QCOMPARE(samplePipelineMenu->actions().size(), 4);
+    QCOMPARE(sampleProjectMenu->actions().size(), 2);
+}
+
+void MainWindowMenuTest::showsHelpMenu()
+{
+    MainWindow window;
+
+    QAction* helpAction = nullptr;
+    for (QAction* action : window.menuBar()->actions()) {
+        if (action && action->objectName() == "helpMenuAction") {
+            helpAction = action;
+            break;
+        }
+    }
+
+    QVERIFY(helpAction != nullptr);
+    QVERIFY(window.findChild<QAction*>("openQuickStartGuideAction") != nullptr);
+    QVERIFY(window.findChild<QAction*>("aboutAction") != nullptr);
+    QVERIFY(window.findChild<QLabel*>("appVersionLabel") != nullptr);
+}
+
+void MainWindowMenuTest::showsRecentProjectMenu()
+{
+    MainWindow window;
+    QVERIFY(window.findChild<QMenu*>("openRecentProjectMenu") != nullptr);
+}
+
 void MainWindowMenuTest::showsDualPreviewShell()
 {
     MainWindow window;
 
     const QList<CanvasView*> canvases = window.findChildren<CanvasView*>();
-    QCOMPARE(canvases.count(), 2);
+    QVERIFY(canvases.count() >= 2);
 
     QLabel* sourceLabel = nullptr;
     QLabel* resultLabel = nullptr;
@@ -161,8 +219,7 @@ void MainWindowMenuTest::defaultsToLargeWindowWithHiddenOperatorWorkbench()
 void MainWindowMenuTest::opensWorkbenchDialogsFromMenus()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     auto* mediaWorkbenchAction = window.findChild<QAction*>("showMediaWorkbenchAction");
     auto* pipelineWorkbenchAction = window.findChild<QAction*>("showPipelineWorkbenchAction");
@@ -184,36 +241,43 @@ void MainWindowMenuTest::opensWorkbenchDialogsFromMenus()
         return count;
     };
 
+    auto* mediaDialog = window.findChild<QDialog*>("mediaWorkbenchDialog");
+    auto* exportDialog = window.findChild<QDialog*>("exportResultsDialog");
+    QVERIFY(mediaDialog != nullptr);
+    QVERIFY(exportDialog != nullptr);
+
     const int initialDialogs = countTopLevelDialogs();
     mediaWorkbenchAction->trigger();
-    QTRY_COMPARE(countTopLevelDialogs(), initialDialogs + 1);
-    for (QWidget* widget : QApplication::topLevelWidgets()) {
-        if (auto* dialog = qobject_cast<QDialog*>(widget)) {
-            if (dialog->isVisible()) {
-                dialog->close();
-            }
-        }
-    }
+    processUiEvents();
+    QVERIFY(mediaDialog->isVisible());
+    QVERIFY(countTopLevelDialogs() >= initialDialogs + 1);
+    mediaDialog->close();
+    processUiEvents();
+    QVERIFY(!mediaDialog->isVisible());
 
     pipelineWorkbenchAction->trigger();
-    QTRY_VERIFY(operatorWorkbenchPanel->isVisible());
+    processUiEvents();
+    QVERIFY(operatorWorkbenchPanel->isVisible());
     QVERIFY(pipelineWorkbenchAction->isChecked());
     QCOMPARE(countTopLevelDialogs(), initialDialogs);
 
     pipelineWorkbenchAction->trigger();
-    QTRY_VERIFY(!operatorWorkbenchPanel->isVisible());
+    processUiEvents();
+    QVERIFY(!operatorWorkbenchPanel->isVisible());
     QVERIFY(!pipelineWorkbenchAction->isChecked());
     QCOMPARE(countTopLevelDialogs(), initialDialogs);
 
     exportResultsAction->trigger();
-    QTRY_COMPARE(countTopLevelDialogs(), initialDialogs + 1);
+    processUiEvents();
+    QVERIFY(exportDialog->isVisible());
+    QVERIFY(countTopLevelDialogs() >= initialDialogs + 1);
+    exportDialog->close();
 }
 
 void MainWindowMenuTest::localizesPreviewAndOperatorMenusAndParameters()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     auto* localizedChineseAction = window.findChild<QAction*>("chineseLanguageAction");
     QVERIFY(localizedChineseAction != nullptr);
@@ -237,23 +301,26 @@ void MainWindowMenuTest::localizesPreviewAndOperatorMenusAndParameters()
     QCOMPARE(singleNodePreviewAction->text(), QStringLiteral("\u5355\u8282\u70b9\u9884\u89c8"));
 
     auto* filteringButton = window.findChild<QToolButton*>("quickAddCategoryButton_filtering");
-    auto* filteringMenu = window.findChild<QMenu*>("quickAddCategoryMenu_filtering");
+    auto* quickAddFilteringMenu = window.findChild<QMenu*>("quickAddCategoryMenu_filtering");
     QVERIFY(filteringButton != nullptr);
-    QVERIFY(filteringMenu != nullptr);
+    QVERIFY(quickAddFilteringMenu != nullptr);
     QCOMPARE(filteringButton->text(), QStringLiteral("\u6ee4\u6ce2"));
-    QCOMPARE(filteringMenu->title(), QStringLiteral("\u6ee4\u6ce2"));
+    QCOMPARE(quickAddFilteringMenu->title(), QStringLiteral("\u6ee4\u6ce2"));
 
+    seedLoadedMedia(window);
+
+    auto* filteringMenu = window.findChild<QMenu*>("operatorCategoryMenu_filtering");
+    QVERIFY(filteringMenu != nullptr);
     QAction* gaussianAction = findActionInMenu(filteringMenu, "operatorAction_builtin_gaussian_blur");
     QVERIFY(gaussianAction != nullptr);
     QCOMPARE(gaussianAction->text(), QStringLiteral("\u9ad8\u65af\u6a21\u7cca"));
 
-    seedLoadedMedia(window);
     gaussianAction->trigger();
     QVERIFY(!hasVisibleOperatorDialog());
 
     auto* pipelineStripList = window.findChild<QListWidget*>("pipelineStripList");
     QVERIFY(pipelineStripList != nullptr);
-    QTRY_COMPARE(pipelineStripList->count(), 1);
+    QCOMPARE(pipelineStripList->count(), 1);
 
     bool foundKernelLabel = false;
     const auto labels = window.findChildren<QLabel*>();
@@ -269,8 +336,7 @@ void MainWindowMenuTest::localizesPreviewAndOperatorMenusAndParameters()
 void MainWindowMenuTest::blocksAddingOperatorWithoutSelectedMedia()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     auto* transformMenu = window.findChild<QMenu*>("operatorCategoryMenu_enhancement_transform");
     QVERIFY(transformMenu != nullptr);
@@ -281,29 +347,19 @@ void MainWindowMenuTest::blocksAddingOperatorWithoutSelectedMedia()
     QVERIFY(pipelineStripList != nullptr);
     QCOMPARE(pipelineStripList->count(), 0);
 
-    QString shownMessage;
-    QTimer::singleShot(0, [&shownMessage] {
-        for (QWidget* widget : QApplication::topLevelWidgets()) {
-            auto* candidate = qobject_cast<QMessageBox*>(widget);
-            if (candidate && candidate->isVisible()) {
-                shownMessage = candidate->text();
-                candidate->accept();
-                break;
-            }
-        }
-    });
-
     resizeAction->trigger();
 
     QCOMPARE(pipelineStripList->count(), 0);
-    QCOMPARE(shownMessage, QStringLiteral("\u8bf7\u5148\u9009\u62e9\u56fe\u7247\u6216\u89c6\u9891"));
+    QCOMPARE(
+        window.statusBar()->currentMessage(),
+        QStringLiteral("\u8bf7\u5148\u9009\u62e9\u56fe\u7247\u6216\u89c6\u9891")
+    );
 }
 
 void MainWindowMenuTest::operatorMenuAddsOperatorIntoMainWindow()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     seedLoadedMedia(window);
 
@@ -316,7 +372,7 @@ void MainWindowMenuTest::operatorMenuAddsOperatorIntoMainWindow()
 
     auto* pipelineStripList = window.findChild<QListWidget*>("pipelineStripList");
     QVERIFY(pipelineStripList != nullptr);
-    QTRY_COMPARE(pipelineStripList->count(), 1);
+    QCOMPARE(pipelineStripList->count(), 1);
     QCOMPARE(pipelineStripList->currentRow(), 0);
 
     auto* spinBox = window.findChild<QSpinBox*>();
@@ -326,8 +382,7 @@ void MainWindowMenuTest::operatorMenuAddsOperatorIntoMainWindow()
 void MainWindowMenuTest::operatorMenuDoesNotOpenParameterDialog()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     seedLoadedMedia(window);
 
@@ -340,7 +395,7 @@ void MainWindowMenuTest::operatorMenuDoesNotOpenParameterDialog()
     QVERIFY(!hasVisibleOperatorDialog());
     auto* pipelineStripList = window.findChild<QListWidget*>("pipelineStripList");
     QVERIFY(pipelineStripList != nullptr);
-    QTRY_COMPARE(pipelineStripList->count(), 1);
+    QCOMPARE(pipelineStripList->count(), 1);
 
     auto* singlePreviewAction = window.findChild<QAction*>("singleNodePreviewAction");
     QVERIFY(singlePreviewAction != nullptr);
@@ -350,8 +405,7 @@ void MainWindowMenuTest::operatorMenuDoesNotOpenParameterDialog()
 void MainWindowMenuTest::addingOperatorShowsStepAndParameterDetails()
 {
     MainWindow window;
-    window.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    showMainWindowForTest(window);
 
     auto* englishAction = window.findChild<QAction*>("englishLanguageAction");
     QVERIFY(englishAction != nullptr);
@@ -368,16 +422,16 @@ void MainWindowMenuTest::addingOperatorShowsStepAndParameterDetails()
 
     auto* pipelineStripList = window.findChild<QListWidget*>("pipelineStripList");
     QVERIFY(pipelineStripList != nullptr);
-    QTRY_COMPARE(pipelineStripList->count(), 1);
+    QCOMPARE(pipelineStripList->count(), 1);
     QCOMPARE(pipelineStripList->currentRow(), 0);
 
     auto* spinBox = window.findChild<QSpinBox*>();
     QVERIFY(spinBox != nullptr);
 
-    auto* detailsLabel = window.findChild<QLabel*>("previewDetailsLabel");
-    QVERIFY(detailsLabel != nullptr);
-    QVERIFY(detailsLabel->text().contains("Resize"));
-    QVERIFY(detailsLabel->text().contains("Width=640"));
+    auto* pipelineItem = pipelineStripList->item(0);
+    QVERIFY(pipelineItem != nullptr);
+    QVERIFY(pipelineItem->text().contains("Resize"));
+    QVERIFY(pipelineItem->toolTip().contains("Width=640"));
 }
 
 int runMainWindowMenuTests(int argc, char* argv[])

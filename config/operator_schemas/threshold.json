@@ -1,0 +1,60 @@
+{
+  "id": "builtin.threshold",
+  "displayName": "Threshold",
+  "category": "Thresholding",
+  "parameters": [
+    {
+      "key": "threshold",
+      "displayName": "Threshold",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 127.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "maxValue",
+      "displayName": "Max Value",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 255.0,
+      "min": 0.0,
+      "max": 255.0,
+      "step": 1.0
+    },
+    {
+      "key": "type",
+      "displayName": "Type",
+      "group": "阈值设置",
+      "type": "choice",
+      "default": "binary",
+      "choices": [
+        {
+          "value": "binary",
+          "label": "Binary"
+        },
+        {
+          "value": "binary_inv",
+          "label": "Binary Inverted"
+        },
+        {
+          "value": "trunc",
+          "label": "Truncate"
+        },
+        {
+          "value": "tozero",
+          "label": "To Zero"
+        },
+        {
+          "value": "tozero_inv",
+          "label": "To Zero Inverted"
+        },
+        {
+          "value": "otsu",
+          "label": "Otsu"
+        }
+      ]
+    }
+  ]
+}

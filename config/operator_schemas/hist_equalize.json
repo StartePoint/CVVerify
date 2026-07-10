@@ -1,0 +1,74 @@
+{
+  "id": "builtin.hist_equalize",
+  "displayName": "Histogram Equalize",
+  "category": "Enhancement",
+  "parameters": [
+    {
+      "key": "mode",
+      "displayName": "Mode",
+      "group": "模式设置",
+      "type": "choice",
+      "default": "global",
+      "choices": [
+        {
+          "value": "global",
+          "label": "Global"
+        },
+        {
+          "value": "clahe",
+          "label": "CLAHE"
+        }
+      ]
+    },
+    {
+      "key": "colorMode",
+      "displayName": "Color Mode",
+      "group": "模式设置",
+      "type": "choice",
+      "default": "gray_or_luminance",
+      "choices": [
+        {
+          "value": "gray_only",
+          "label": "Gray Only"
+        },
+        {
+          "value": "gray_or_luminance",
+          "label": "Gray Or Luminance"
+        }
+      ]
+    },
+    {
+      "key": "clipLimit",
+      "displayName": "Clip Limit",
+      "group": "CLAHE 设置",
+      "type": "double",
+      "default": 2.0,
+      "min": 0.1,
+      "max": 40.0,
+      "step": 0.1,
+      "visibleWhen": "mode=clahe"
+    },
+    {
+      "key": "tileGridWidth",
+      "displayName": "Tile Grid Width",
+      "group": "CLAHE 设置",
+      "type": "integer",
+      "default": 8,
+      "min": 1,
+      "max": 64,
+      "step": 1,
+      "visibleWhen": "mode=clahe"
+    },
+    {
+      "key": "tileGridHeight",
+      "displayName": "Tile Grid Height",
+      "group": "CLAHE 设置",
+      "type": "integer",
+      "default": 8,
+      "min": 1,
+      "max": 64,
+      "step": 1,
+      "visibleWhen": "mode=clahe"
+    }
+  ]
+}

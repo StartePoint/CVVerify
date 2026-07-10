@@ -1,0 +1,45 @@
+{
+  "id": "builtin.canny",
+  "displayName": "Canny",
+  "category": "Edge Detection",
+  "parameters": [
+    {
+      "key": "threshold1",
+      "displayName": "Threshold 1",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 50.0,
+      "min": 0.0,
+      "max": 500.0,
+      "step": 1.0
+    },
+    {
+      "key": "threshold2",
+      "displayName": "Threshold 2",
+      "group": "阈值设置",
+      "type": "double",
+      "default": 150.0,
+      "min": 0.0,
+      "max": 500.0,
+      "step": 1.0
+    },
+    {
+      "key": "apertureSize",
+      "displayName": "Aperture Size",
+      "group": "梯度设置",
+      "type": "integer",
+      "default": 3,
+      "min": 3,
+      "max": 7,
+      "step": 2,
+      "tooltip": "Must stay odd and within 3~7"
+    },
+    {
+      "key": "useL2Gradient",
+      "displayName": "Use L2 Gradient",
+      "group": "梯度设置",
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

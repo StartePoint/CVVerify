@@ -31,14 +31,33 @@ jobs:
             ".github/ISSUE_TEMPLATE/feature_request.md",
             ".github/ISSUE_TEMPLATE/config.yml",
             "docs/build-windows-mingw.md",
+            "docs/build-linux.md",
+            "docs/build-macos.md",
+            "docs/quick-start-validation.md",
+            "docs/manual-validation-v0.1.0.md",
             "docs/repository-structure.md",
-            "docs/open-source-release-checklist.md"
+            "docs/open-source-release-checklist.md",
+            "config/operator_schemas/index.json",
+            "config/app_defaults.json",
+            "config/operator_schemas/gaussian_blur.json",
+            "samples/images/checkerboard.png",
+            "samples/pipelines/edge_canny.json",
+            "samples/models/labels.example.txt",
+            "scripts/generate_operator_schemas.py",
+            "packaging/windows/package.ps1",
+            "packaging/linux/package.sh",
+            "packaging/macos/package.sh"
           )
 
           foreach ($path in $required) {
             if (-not (Test-Path $path)) {
               throw "Missing required repository file: $path"
             }
+          }
+
+          $index = Get-Content "config/operator_schemas/index.json" -Raw | ConvertFrom-Json
+          if ($index.schemas.Count -ne 48) {
+            throw "Expected 48 indexed operator schemas, found $($index.schemas.Count)"
           }
 
       - name: Verify ignored local-only files are not tracked
@@ -57,3 +76,41 @@ jobs:
               throw "Tracked local-only file(s) detected:`n$($matches -join "`n")"
             }
           }
+
+  build-mingw:
+    runs-on: windows-latest
+    needs: repository-checks
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 5.14.2 MinGW
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "5.14.2"
+          arch: win64_mingw73
+          modules: qtbase qttools
+          cache: true
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $qtRoot = "${{ env.QT_ROOT_DIR }}"
+          $mingwBin = Split-Path (Get-Command gcc.exe).Source -Parent
+          cmake -S . -B build-ci -G "MinGW Makefiles" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$qtRoot" `
+            -DCMAKE_C_COMPILER="$mingwBin/gcc.exe" `
+            -DCMAKE_CXX_COMPILER="$mingwBin/g++.exe" `
+            -DCMAKE_MAKE_PROGRAM="$mingwBin/mingw32-make.exe" `
+            -DCVVERIFY_QT_RUNTIME_BIN="$qtRoot/bin" `
+            -DCVVERIFY_OPENCV_SDK_ROOT="$PWD/opencvsdk/windows/opencv4.12"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build-ci -j 4
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build-ci --output-on-failure

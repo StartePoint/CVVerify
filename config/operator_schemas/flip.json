@@ -1,0 +1,28 @@
+{
+  "id": "builtin.flip",
+  "displayName": "Flip",
+  "category": "Transform",
+  "parameters": [
+    {
+      "key": "flipCode",
+      "displayName": "Flip Code",
+      "group": "翻转设置",
+      "type": "choice",
+      "default": "horizontal",
+      "choices": [
+        {
+          "value": "horizontal",
+          "label": "Horizontal"
+        },
+        {
+          "value": "vertical",
+          "label": "Vertical"
+        },
+        {
+          "value": "both",
+          "label": "Both"
+        }
+      ]
+    }
+  ]
+}

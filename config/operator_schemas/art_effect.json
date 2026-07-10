@@ -1,0 +1,48 @@
+{
+  "id": "builtin.art_effect",
+  "displayName": "Art Effect",
+  "category": "Filter Effects",
+  "parameters": [
+    {
+      "key": "styleMode",
+      "displayName": "Style Mode",
+      "group": "效果设置",
+      "type": "choice",
+      "default": "stylization",
+      "choices": [
+        {
+          "value": "stylization",
+          "label": "Stylization"
+        },
+        {
+          "value": "detail_enhance",
+          "label": "Detail Enhance"
+        },
+        {
+          "value": "edge_preserve",
+          "label": "Edge Preserve"
+        }
+      ]
+    },
+    {
+      "key": "sigmaS",
+      "displayName": "Sigma S",
+      "group": "效果设置",
+      "type": "double",
+      "default": 60.0,
+      "min": 0.0,
+      "max": 200.0,
+      "step": 1.0
+    },
+    {
+      "key": "sigmaR",
+      "displayName": "Sigma R",
+      "group": "效果设置",
+      "type": "double",
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01
+    }
+  ]
+}

@@ -4,6 +4,7 @@
 #include <QVector>
 
 #include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
 
 struct DnnRunResult
 {
@@ -14,6 +15,8 @@ struct DnnRunResult
 
 namespace OpenCvDnnRunner {
 
+void clearModelCache();
+void setPreferredBackend(const QString& backendId);
 DnnRunResult runSingleOutputModel(const QString& modelPath, const cv::Mat& blob);
 
 }
